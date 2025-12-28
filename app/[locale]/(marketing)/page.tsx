@@ -1,7 +1,11 @@
 import PixelBlast from "@/components/PixelBlast";
 import { Button } from "@/components/ui/button";
+import { AuthRedirect } from "@/components/marketing/auth-redirect";
+import { useTranslations } from "next-intl";
 
 export default function LandingPage() {
+  const t = useTranslations("Marketing");
+
   return (
     <div className="flex flex-col gap-12 pb-12 bg-black text-white">
       {/* Hero Section */}
@@ -29,18 +33,17 @@ export default function LandingPage() {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm">
             <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
             <span className="text-xs font-medium text-purple-200">
-              Start Creating Today
+              {t("hero.badge")}
             </span>
           </div>
 
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.9]">
-            It's dangerous to go <br />
-            alone! Take this.
-          </h1>
+          <h1
+            className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.9]"
+            dangerouslySetInnerHTML={{ __html: t.raw("hero.title") }}
+          />
 
           <p className="text-xl text-neutral-400 max-w-xl mx-auto">
-            Turn your stories into 8-bit worlds instantly with the power of
-            Egot. A generative game engine for everyone.
+            {t("hero.subtitle")}
           </p>
 
           <div className="flex gap-4 justify-center pt-4">
@@ -48,14 +51,14 @@ export default function LandingPage() {
               size="lg"
               className="rounded-full px-8 py-6 text-lg font-bold bg-white text-black hover:bg-neutral-200 transition-colors"
             >
-              Get Started
+              {t("hero.getStarted")}
             </Button>
             <Button
               size="lg"
               variant="outline"
               className="rounded-full px-8 py-6 text-lg font-bold bg-white/5 border-white/10 hover:bg-white/10 text-white transition-colors backdrop-blur-sm"
             >
-              Learn More
+              {t("hero.learnMore")}
             </Button>
           </div>
         </div>
@@ -63,22 +66,24 @@ export default function LandingPage() {
 
       {/* How It Works */}
       <section className="container mx-auto px-6 py-24 relative z-10">
-        <h2 className="text-3xl font-bold text-center mb-16">How It Works</h2>
+        <h2 className="text-3xl font-bold text-center mb-16">
+          {t("howItWorks.title")}
+        </h2>
         <div className="grid md:grid-cols-3 gap-8">
           {[
             {
-              title: "1. Tell Egot",
-              desc: "Share your story or idea in chat.",
+              title: t("howItWorks.steps.step1.title"),
+              desc: t("howItWorks.steps.step1.desc"),
               icon: "💬",
             },
             {
-              title: "2. Watch it Build",
-              desc: "See the map and sprites generate instantly.",
+              title: t("howItWorks.steps.step2.title"),
+              desc: t("howItWorks.steps.step2.desc"),
               icon: "✨",
             },
             {
-              title: "3. Publish & Play",
-              desc: "Share your game with the world.",
+              title: t("howItWorks.steps.step3.title"),
+              desc: t("howItWorks.steps.step3.desc"),
               icon: "🎮",
             },
           ].map((step, i) => (
@@ -95,6 +100,8 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
+      {/* Auth Redirect */}
+      <AuthRedirect />
     </div>
   );
 }

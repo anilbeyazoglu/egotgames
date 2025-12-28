@@ -1,0 +1,88 @@
+{
+  "Marketing": {
+    "nav": {
+      "home": "Anasayfa",
+      "explore": "Keşfet",
+      "signIn": "Giriş Yap",
+      "create": "Oluştur",
+      "userMenu": {
+        "profile": "Profilim",
+        "games": "Oyunlarım",
+        "assets": "Varlıklarım",
+        "preferences": "Hesap Tercihleri",
+        "signOut": "Çıkış Yap"
+      }
+    },
+    "hero": {
+      "badge": "Bugün Oluşturmaya Başla",
+      "title": "Tek başına gitmek <br /> tehlikeli! Bunu al.",
+      "subtitle": "Egot'un gücüyle hikayelerinizi anında 8-bit dünyalara dönüştürün. Herkes için üretken bir oyun motoru.",
+      "getStarted": "Başlayın",
+      "learnMore": "Daha Fazla Bilgi"
+    },
+    "howItWorks": {
+      "title": "Nasıl Çalışır",
+      "steps": {
+        "step1": {
+          "title": "1. Egot'a Anlat",
+          "desc": "Hikayeni veya fikrini sohbette paylaş."
+        },
+        "step2": {
+          "title": "2. İnşayı İzle",
+          "desc": "Harita ve spriteların anında oluşumunu gör."
+        },
+        "step3": {
+          "title": "3. Yayınla & Oyna",
+          "desc": "Oyununu dünya ile paylaş."
+        }
+      }
+    }
+  },
+  "Auth": {
+    "login": {
+      "title": "Giriş Yap",
+      "description": "Konsola erişmek için kimlik bilgilerinizi girin",
+      "emailLabel": "E-posta",
+      "passwordLabel": "Şifre",
+      "submit": "Giriş Yap",
+      "orContinueWith": "veya şununla devam et",
+      "noAccount": "Hesabınız yok mu?",
+      "signUp": "Kayıt ol"
+    },
+    "signup": {
+      "title": "Hesap Oluştur",
+      "description": "Hesap oluşturmak için detayları girin",
+      "usernameLabel": "Kullanıcı Adı",
+      "emailLabel": "E-posta",
+      "passwordLabel": "Şifre",
+      "submit": "Kayıt Ol",
+      "hasAccount": "Zaten hesabınız var mı?",
+      "signIn": "Giriş yap"
+    }
+  },
+  "Dashboard": {
+    "sidebar": {
+      "dashboard": "Panel",
+      "community": "Topluluk",
+      "myGames": "Oyunlarım",
+      "assets": "Varlıklar",
+      "settings": "Ayarlar",
+      "version": "v1.0.0"
+    },
+    "header": {
+      "title": "Panel",
+      "feedback": "Geri Bildirim"
+    },
+    "overview": {
+      "totalGames": "Toplam Oyun",
+      "totalGamesTrend": "Geçen aydan +2",
+      "activePlayers": "Aktif Oyuncular",
+      "activePlayersTrend": "Bu hafta +180",
+      "assetUsage": "Varlık Kullanımı",
+      "assetUsageTrend": "Geçen aydan +%4",
+      "yourProjects": "Projeleriniz",
+      "newProject": "Yeni Proje",
+      "lastEdited": "{days} gün önce düzenlendi"
+    }
+  }
+}

@@ -1,59 +1,55 @@
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
+import { UserNav } from "@/components/marketing/user-nav";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 export default function MarketingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const t = useTranslations("Marketing.nav");
+
   return (
-    <div className="min-h-screen bg-black text-white relative font-sans selection:bg-purple-500/30">
-      {/* Floating Pill Header */}
-      <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-4">
-        <header className="bg-neutral-900/80 backdrop-blur-md border border-white/10 rounded-full px-6 py-3 flex items-center justify-between w-full max-w-5xl shadow-2xl">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative w-8 h-8 overflow-hidden rounded-lg">
+    <div className="min-h-screen bg-black text-white selection:bg-white/20">
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-black/50 backdrop-blur-xl">
+        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+          <Link
+            href="/"
+            className="flex items-center gap-2 font-bold text-xl tracking-tighter"
+          >
+            <div className="w-8 h-8 relative">
               <Image
                 src="/logo.png"
                 alt="EgotGames Logo"
                 fill
-                className="object-contain transition-transform group-hover:scale-110"
+                className="object-contain"
               />
             </div>
-            <span className="font-bold tracking-tight text-lg">EgotGames</span>
+            EgotGames
           </Link>
+
           <nav className="hidden md:flex gap-8 items-center">
             <Link
               href="/"
               className="text-sm font-medium text-neutral-400 hover:text-white transition-colors"
             >
-              Home
+              {t("home")}
             </Link>
             <Link
-              href="/docs"
+              href="/explore"
               className="text-sm font-medium text-neutral-400 hover:text-white transition-colors"
             >
-              Docs
+              {t("explore")}
             </Link>
           </nav>
-          <div className="flex gap-4 items-center">
-            <Link
-              href="/login"
-              className="text-sm font-medium text-white/70 hover:text-white transition-colors"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/signup"
-              className="text-sm font-medium bg-white text-black px-6 py-2 rounded-full font-bold hover:bg-neutral-200 transition-colors"
-            >
-              Start
-            </Link>
-          </div>
-        </header>
-      </div>
 
-      <main className="flex-1">{children}</main>
+          <UserNav />
+        </div>
+      </header>
+
+      <main className="pt-16">{children}</main>
 
       <footer className="border-t border-white/10 py-12 text-center text-sm text-neutral-500 bg-black">
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center px-6 gap-6">

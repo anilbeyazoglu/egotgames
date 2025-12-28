@@ -1,0 +1,88 @@
+{
+  "Marketing": {
+    "nav": {
+      "home": "Home",
+      "explore": "Explore",
+      "signIn": "Sign In",
+      "create": "Create",
+      "userMenu": {
+        "profile": "My Profile",
+        "games": "My Games",
+        "assets": "My Assets",
+        "preferences": "Account Preferences",
+        "signOut": "Sign Out"
+      }
+    },
+    "hero": {
+      "badge": "Start Creating Today",
+      "title": "It's dangerous to go <br /> alone! Take this.",
+      "subtitle": "Turn your stories into 8-bit worlds instantly with the power of Egot. A generative game engine for everyone.",
+      "getStarted": "Get Started",
+      "learnMore": "Learn More"
+    },
+    "howItWorks": {
+      "title": "How It Works",
+      "steps": {
+        "step1": {
+          "title": "1. Tell Egot",
+          "desc": "Share your story or idea in chat."
+        },
+        "step2": {
+          "title": "2. Watch it Build",
+          "desc": "See the map and sprites generate instantly."
+        },
+        "step3": {
+          "title": "3. Publish & Play",
+          "desc": "Share your game with the world."
+        }
+      }
+    }
+  },
+  "Auth": {
+    "login": {
+      "title": "Sign In",
+      "description": "Enter your credentials to access the console",
+      "emailLabel": "Email",
+      "passwordLabel": "Password",
+      "submit": "Sign In",
+      "orContinueWith": "Or continue with",
+      "noAccount": "Don't have an account?",
+      "signUp": "Sign up"
+    },
+    "signup": {
+      "title": "Create Account",
+      "description": "Enter your details to create an account",
+      "usernameLabel": "Username",
+      "emailLabel": "Email",
+      "passwordLabel": "Password",
+      "submit": "Sign Up",
+      "hasAccount": "Already have an account?",
+      "signIn": "Sign in"
+    }
+  },
+  "Dashboard": {
+    "sidebar": {
+      "dashboard": "Dashboard",
+      "community": "Community",
+      "myGames": "My Games",
+      "assets": "Assets",
+      "settings": "Settings",
+      "version": "v1.0.0"
+    },
+    "header": {
+      "title": "Dashboard",
+      "feedback": "Feedback"
+    },
+    "overview": {
+      "totalGames": "Total Games",
+      "totalGamesTrend": "+2 from last month",
+      "activePlayers": "Active Players",
+      "activePlayersTrend": "+180 this week",
+      "assetUsage": "Asset Usage",
+      "assetUsageTrend": "+4% from last month",
+      "yourProjects": "Your Projects",
+      "newProject": "New Project",
+      "lastEdited": "Last edited {days} days ago"
+    }
+  }
+}
