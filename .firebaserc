@@ -1,7 +1,7 @@
 {
   "projects": {
-    "default": "egotgames-2710",
-    "egotgames": "egotgames-2710"
+    "default": "egotgames-2017",
+    "egotgames": "egotgames-2017"
   },
   "targets": {},
   "etags": {}
