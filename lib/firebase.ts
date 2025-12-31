@@ -1,5 +1,10 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -10,8 +15,38 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+// ... imports remain the same
+
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 
-export { auth };
+// Use initializeFirestore to configure settings
+// Connect to the named database 'egotgames-prod'
+const db = initializeFirestore(
+  app,
+  {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
+  },
+  "egotgames-prod"
+); // <-- Named database ID
+
+// Debug logging for configuration (safe)
+if (typeof window !== "undefined") {
+  console.log("[Firebase] Initializing...", {
+    hasApiKey: !!firebaseConfig.apiKey,
+    hasAuthDomain: !!firebaseConfig.authDomain,
+    projectId: firebaseConfig.projectId,
+    hasAppId: !!firebaseConfig.appId,
+  });
+
+  if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+    console.error(
+      "[Firebase] CRITICAL: Missing configuration! Check .env.local"
+    );
+  }
+}
+
+export { auth, db };

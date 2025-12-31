@@ -56,7 +56,7 @@ export function UserNav() {
     return (
       <div className="flex items-center gap-4">
         <Link
-          href="/create"
+          href="/games/create"
           className="text-sm font-medium bg-white text-black px-6 py-2 rounded-full font-bold hover:bg-neutral-200 transition-colors"
         >
           {t("create")}

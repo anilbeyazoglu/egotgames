@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, usePathname } from "@/i18n/routing";
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +18,7 @@ import {
   Settings,
   Gamepad2,
   Layers,
+  CreditCard,
 } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
@@ -47,6 +47,11 @@ export function AppSidebar() {
       title: t("assets"),
       url: "/assets",
       icon: Layers,
+    },
+    {
+      title: t("credits"),
+      url: "/credits",
+      icon: CreditCard,
     },
     {
       title: t("settings"),

@@ -66,8 +66,23 @@
       "community": "Community",
       "myGames": "My Games",
       "assets": "Assets",
+      "credits": "Credits",
       "settings": "Settings",
       "version": "v1.0.0"
+    },
+    "assets": {
+      "title": "My Assets",
+      "description": "Manage your AI-generated game assets.",
+      "empty": {
+        "title": "No assets yet",
+        "description": "Generate your first asset by creating a game and using AI features."
+      },
+      "tabs": {
+        "all": "All",
+        "sprites": "Sprites",
+        "sounds": "Sounds",
+        "tilesets": "Tilesets"
+      }
     },
     "header": {
       "title": "Dashboard",
@@ -80,8 +95,12 @@
       "activePlayersTrend": "+180 this week",
       "assetUsage": "Asset Usage",
       "assetUsageTrend": "+4% from last month",
-      "yourProjects": "Your Projects",
-      "newProject": "New Project",
+      "yourGames": "Your Games",
+      "newGame": "New Game",
+      "noGamesYet": "No games yet",
+      "noGamesDescription": "Create your first game and start building!",
+      "createFirstGame": "Create Game",
+      "viewAllGames": "View all games",
       "lastEdited": "Last edited {days} days ago"
     }
   }

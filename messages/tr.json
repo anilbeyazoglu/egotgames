@@ -66,8 +66,23 @@
       "community": "Topluluk",
       "myGames": "Oyunlarım",
       "assets": "Varlıklar",
+      "credits": "Kredi",
       "settings": "Ayarlar",
       "version": "v1.0.0"
+    },
+    "assets": {
+      "title": "Varlıklarım",
+      "description": "AI ile oluşturulmuş oyun varlıklarınızı yönetin.",
+      "empty": {
+        "title": "Henüz varlık yok",
+        "description": "Bir oyun oluşturup AI özelliklerini kullanarak ilk varlığınızı oluşturun."
+      },
+      "tabs": {
+        "all": "Tümü",
+        "sprites": "Spritelar",
+        "sounds": "Sesler",
+        "tilesets": "Karo Setleri"
+      }
     },
     "header": {
       "title": "Panel",
@@ -80,8 +95,12 @@
       "activePlayersTrend": "Bu hafta +180",
       "assetUsage": "Varlık Kullanımı",
       "assetUsageTrend": "Geçen aydan +%4",
-      "yourProjects": "Projeleriniz",
-      "newProject": "Yeni Proje",
+      "yourGames": "Oyunlarınız",
+      "newGame": "Yeni Oyun",
+      "noGamesYet": "Henüz oyun yok",
+      "noGamesDescription": "İlk oyununuzu oluşturun ve geliştirmeye başlayın!",
+      "createFirstGame": "Oyun Oluştur",
+      "viewAllGames": "Tüm oyunları görüntüle",
       "lastEdited": "{days} gün önce düzenlendi"
     }
   }
