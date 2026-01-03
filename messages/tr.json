@@ -9,7 +9,7 @@
         "profile": "Profilim",
         "games": "Oyunlarım",
         "assets": "Varlıklarım",
-        "preferences": "Hesap Tercihleri",
+        "preferences": "Hesap Ayarları",
         "signOut": "Çıkış Yap"
       }
     },
@@ -63,11 +63,18 @@
   "Dashboard": {
     "sidebar": {
       "dashboard": "Panel",
-      "community": "Topluluk",
+      "explore": "Keşfet",
+      "myFriends": "Arkadaşlarım",
       "myGames": "Oyunlarım",
-      "assets": "Varlıklar",
-      "credits": "Kredi",
-      "settings": "Ayarlar",
+      "assets": "Varlıklarım",
+      "screenshots": "Ekran Görüntülerim",
+      "pixelEditor": "Yapay Zeka Piksel Sanat Üreticisi",
+      "credits": "Kredi Satın Al",
+      "settings": "Hesap Ayarları",
+      "themeToggle": "Tema değiştir",
+      "themeLight": "Açık mod",
+      "themeDark": "Koyu mod",
+      "languageToggle": "Dil değiştir",
       "version": "v1.0.0"
     },
     "assets": {
@@ -82,6 +89,14 @@
         "sprites": "Spritelar",
         "sounds": "Sesler",
         "tilesets": "Karo Setleri"
+      }
+    },
+    "screenshots": {
+      "title": "Ekran Görüntülerim",
+      "description": "Oyun ekran görüntülerinizi görüntüleyin ve yönetin.",
+      "empty": {
+        "title": "Henüz ekran görüntüsü yok",
+        "description": "Oyun oynarken Ekran Görüntüsü düğmesine tıklayarak ekran görüntüleri alın."
       }
     },
     "header": {
@@ -102,6 +117,59 @@
       "createFirstGame": "Oyun Oluştur",
       "viewAllGames": "Tüm oyunları görüntüle",
       "lastEdited": "{days} gün önce düzenlendi"
+    }
+  },
+  "Explore": {
+    "title": "Keşfet",
+    "description": "Topluluk tarafından oluşturulup paylaşılan herkese açık oyunları keşfedin.",
+    "searchPlaceholder": "Başlık veya açıklamaya göre oyun ara...",
+    "searchResults": "Arama Sonuçları",
+    "bestRated": "En Yüksek Puanlı",
+    "mostPlayed": "En Çok Oynanan",
+    "newcomers": "Yeni Oyunlar",
+    "loading": "Herkese açık oyunlar yükleniyor...",
+    "loadError": "Herkese açık oyunlar yüklenemedi. Lütfen tekrar deneyin.",
+    "empty": "Henüz herkese açık oyun yok.",
+    "emptySearch": "Aramanızla eşleşen oyun bulunamadı.",
+    "emptySection": "Bu bölümde henüz oyun yok.",
+    "play": "Oyna"
+  },
+  "Profile": {
+    "title": "Profil",
+    "description": "Genel profilinizi ve ayarlarınızı yönetin.",
+    "avatarTitle": "Avatar",
+    "avatarDescription": "Yeni bir avatar yüklemek için avatara tıklayın.",
+    "clickToUpload": "Yüklemek için tıklayın",
+    "detailsTitle": "Detaylar",
+    "detailsDescription": "Kişisel bilgilerinizi güncelleyin.",
+    "firstName": "Ad",
+    "firstNamePlaceholder": "Ahmet",
+    "lastName": "Soyad",
+    "lastNamePlaceholder": "Yılmaz",
+    "username": "Kullanıcı Adı",
+    "usernamePlaceholder": "ahmetyilmaz",
+    "saveChanges": "Değişiklikleri Kaydet",
+    "pleaseLogin": "Profilinizi görmek için lütfen giriş yapın.",
+    "cropImage": "Resmi Kırp",
+    "cropImageDescription": "Resmi avatar dairesine sığacak şekilde ayarlayın.",
+    "cancel": "İptal",
+    "upload": "Yükle"
+  },
+  "Preferences": {
+    "title": "Hesap Ayarları",
+    "description": "Hesap ayarlarınızı yönetin ve işlem geçmişinizi görüntüleyin.",
+    "pleaseLogin": "Hesap ayarlarınızı görmek için lütfen giriş yapın.",
+    "creditHistory": "Kredi Geçmişi",
+    "creditHistoryDescription": "Son kredi işlemlerinizi görüntüleyin.",
+    "noTransactions": "İşlem bulunamadı.",
+    "date": "Tarih",
+    "descriptionLabel": "Açıklama",
+    "statusLabel": "Durum",
+    "amount": "Miktar",
+    "status": {
+        "completed": "Tamamlandı",
+        "pending": "Bekliyor",
+        "failed": "Başarısız"
     }
   }
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { db, auth } from "@/lib/firebase";
+import { db, auth, storage } from "@/lib/firebase";
 import {
   collection,
   query,
@@ -10,7 +10,10 @@ import {
   orderBy,
   onSnapshot,
   getDocsFromCache,
+  addDoc,
+  serverTimestamp,
 } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,6 +32,9 @@ import {
   Sparkles,
   Coins,
   Calendar,
+  Upload,
+  Wand2,
+  Loader2,
 } from "lucide-react";
 
 interface Asset {
@@ -79,6 +85,7 @@ export default function AssetsPage() {
   const [loading, setLoading] = useState(true);
   const [isTimeout, setIsTimeout] = useState(false);
   const [filter, setFilter] = useState<AssetFilter>("all");
+  const [uploading, setUploading] = useState(false);
 
   // 1. Auth Listener
   useEffect(() => {
@@ -173,6 +180,53 @@ export default function AssetsPage() {
       ? assets
       : assets.filter((a) => a.type?.toLowerCase() === filter);
 
+  // Determine asset type from file
+  const getAssetTypeFromFile = (file: File): string => {
+    const mimeType = file.type;
+    if (mimeType.startsWith("image/")) return "sprite";
+    if (mimeType.startsWith("audio/")) return "sound";
+    return "sprite";
+  };
+
+  // Handle file upload
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !user) return;
+
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const assetType = getAssetTypeFromFile(file);
+        const timestamp = Date.now();
+        const fileName = `${timestamp}_${file.name}`;
+        const storagePath = `assets/${user.uid}/${fileName}`;
+        
+        // Upload to Firebase Storage
+        const storageRef = ref(storage, storagePath);
+        await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+
+        // Create Firestore document
+        await addDoc(collection(db, "assets"), {
+          ownerId: user.uid,
+          type: assetType,
+          url: downloadURL,
+          fileName: file.name,
+          storagePath: storagePath,
+          isGenerated: false,
+          cost: 0,
+          createdAt: serverTimestamp(),
+        });
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+    } finally {
+      setUploading(false);
+      // Reset input
+      e.target.value = "";
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full space-y-4">
@@ -199,6 +253,30 @@ export default function AssetsPage() {
             {t("assets.title")}
           </h2>
           <p className="text-muted-foreground">{t("assets.description")}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" disabled>
+            <Wand2 className="h-4 w-4 mr-2" />
+            Create with AI
+          </Button>
+          <Button asChild disabled={uploading}>
+            <label className="cursor-pointer">
+              {uploading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4 mr-2" />
+              )}
+              {uploading ? "Uploading..." : "Upload"}
+              <input
+                type="file"
+                className="hidden"
+                accept="image/*,audio/*"
+                multiple
+                onChange={handleUpload}
+                disabled={uploading}
+              />
+            </label>
+          </Button>
         </div>
       </div>
 

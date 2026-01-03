@@ -2,17 +2,190 @@ rules_version='2'
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2026, 1, 29);
+
+    // ============================================
+    // Helper Functions
+    // ============================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(ownerId) {
+      return isAuthenticated() && request.auth.uid == ownerId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        'admin' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roles;
+    }
+
+    // ============================================
+    // Users Collection
+    // ============================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+    }
+
+    // ============================================
+    // Games Collection
+    // ============================================
+
+    match /games/{gameId} {
+      // Read: owner, public games (for authenticated users), or shared with user
+      allow read: if (resource.data.visibility == 'public' && isAuthenticated()) ||
+                     isOwner(resource.data.ownerId) ||
+                     (isAuthenticated() && request.auth.uid in resource.data.sharedWithIds);
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isOwner(resource.data.ownerId);
+    }
+
+    // ============================================
+    // Game Levels
+    // ============================================
+
+    match /game_levels/{levelId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated();
+    }
+
+    // ============================================
+    // Game Rankings
+    // ============================================
+
+    match /game_rankings/{rankingId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ============================================
+    // Game Categories & Types (read-only for users)
+    // ============================================
+
+    match /game_categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /game_types/{typeId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ============================================
+    // Private Assets (user's own assets)
+    // ============================================
+
+    match /assets/{assetId} {
+      allow read: if isOwner(resource.data.ownerId);
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isOwner(resource.data.ownerId);
+    }
+
+    // ============================================
+    // Screenshots (user's game screenshots)
+    // ============================================
+
+    match /screenshots/{screenshotId} {
+      allow read: if isOwner(resource.data.ownerId);
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow delete: if isOwner(resource.data.ownerId);
+    }
+
+    // ============================================
+    // Public Asset Library
+    // ============================================
+
+    match /publicAssets/{assetId} {
+      // Anyone can read approved assets
+      allow read: if resource.data.status == 'approved' || isOwner(resource.data.creatorId) || isAdmin();
+
+      // Authenticated users can create assets (pending moderation)
+      allow create: if isAuthenticated()
+        && request.resource.data.status == 'pending'
+        && request.resource.data.creatorId == request.auth.uid
+        && request.resource.data.downloadCount == 0
+        && request.resource.data.likeCount == 0
+        && request.resource.data.useCount == 0
+        && request.resource.data.featured == false
+        && request.resource.data.trending == false;
+
+      // Creator can update limited fields (not status, stats, or moderation fields)
+      allow update: if isOwner(resource.data.creatorId)
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.creatorId == resource.data.creatorId
+        && request.resource.data.downloadCount == resource.data.downloadCount
+        && request.resource.data.likeCount == resource.data.likeCount
+        && request.resource.data.useCount == resource.data.useCount
+        && request.resource.data.featured == resource.data.featured
+        && request.resource.data.trending == resource.data.trending
+        && request.resource.data.moderatedAt == resource.data.moderatedAt
+        && request.resource.data.moderatedBy == resource.data.moderatedBy;
+
+      // Admins can update anything (for moderation)
+      allow update: if isAdmin();
+
+      // Only creator or admin can delete
+      allow delete: if isOwner(resource.data.creatorId) || isAdmin();
+
+      // Likes subcollection
+      match /likes/{odbyUserId} {
+        allow read: if true;
+        allow create: if isAuthenticated() && request.auth.uid == odbyUserId;
+        allow delete: if isAuthenticated() && request.auth.uid == odbyUserId;
+      }
+    }
+
+    // ============================================
+    // Public Asset Downloads (analytics)
+    // ============================================
+
+    match /publicAssetDownloads/{downloadId} {
+      allow read: if isAdmin();
+      allow create: if true; // Allow anonymous downloads to be tracked
+    }
+
+    // ============================================
+    // Credit System
+    // ============================================
+
+    match /credit_packages/{packageId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    match /credit_transactions/{transactionId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      // Only server/admin can create transactions
+      allow write: if isAdmin();
+    }
+
+    // ============================================
+    // Notifications (friend requests, system)
+    // ============================================
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow create: if isAuthenticated()
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.type in ['friend_request', 'friend_request_accepted'];
+
+      allow update: if isAuthenticated()
+        && request.auth.uid == resource.data.userId
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.senderId == resource.data.senderId
+        && request.resource.data.type == resource.data.type
+        && request.resource.data.createdAt == resource.data.createdAt;
     }
   }
 }

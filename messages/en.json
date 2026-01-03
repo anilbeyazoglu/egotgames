@@ -9,7 +9,7 @@
         "profile": "My Profile",
         "games": "My Games",
         "assets": "My Assets",
-        "preferences": "Account Preferences",
+        "preferences": "Account Settings",
         "signOut": "Sign Out"
       }
     },
@@ -63,11 +63,18 @@
   "Dashboard": {
     "sidebar": {
       "dashboard": "Dashboard",
-      "community": "Community",
+      "explore": "Explore",
+      "myFriends": "My Friends",
       "myGames": "My Games",
-      "assets": "Assets",
-      "credits": "Credits",
-      "settings": "Settings",
+      "assets": "My Assets",
+      "screenshots": "My Screenshots",
+      "pixelEditor": "AI Pixel Art Generator",
+      "credits": "Buy Credits",
+      "settings": "Account Settings",
+      "themeToggle": "Toggle theme",
+      "themeLight": "Light mode",
+      "themeDark": "Dark mode",
+      "languageToggle": "Switch language",
       "version": "v1.0.0"
     },
     "assets": {
@@ -82,6 +89,14 @@
         "sprites": "Sprites",
         "sounds": "Sounds",
         "tilesets": "Tilesets"
+      }
+    },
+    "screenshots": {
+      "title": "My Screenshots",
+      "description": "View and manage your game screenshots.",
+      "empty": {
+        "title": "No screenshots yet",
+        "description": "Take screenshots while playing your games by clicking the Screenshot button."
       }
     },
     "header": {
@@ -102,6 +117,59 @@
       "createFirstGame": "Create Game",
       "viewAllGames": "View all games",
       "lastEdited": "Last edited {days} days ago"
+    }
+  },
+  "Explore": {
+    "title": "Explore",
+    "description": "Discover public games created and shared by the community.",
+    "searchPlaceholder": "Search games by title or description...",
+    "searchResults": "Search Results",
+    "bestRated": "Best Rated",
+    "mostPlayed": "Most Played",
+    "newcomers": "Newcomers",
+    "loading": "Loading public games...",
+    "loadError": "We couldn't load public games. Please try again.",
+    "empty": "No public games yet.",
+    "emptySearch": "No games match your search.",
+    "emptySection": "No games available in this section yet.",
+    "play": "Play"
+  },
+  "Profile": {
+    "title": "Profile",
+    "description": "Manage your public profile and settings.",
+    "avatarTitle": "Avatar",
+    "avatarDescription": "Click on the avatar to upload a new one.",
+    "clickToUpload": "Click to upload",
+    "detailsTitle": "Details",
+    "detailsDescription": "Update your personal information.",
+    "firstName": "First Name",
+    "firstNamePlaceholder": "John",
+    "lastName": "Last Name",
+    "lastNamePlaceholder": "Doe",
+    "username": "Username",
+    "usernamePlaceholder": "johndoe",
+    "saveChanges": "Save Changes",
+    "pleaseLogin": "Please login to view your profile.",
+    "cropImage": "Crop Image",
+    "cropImageDescription": "Adjust the image to fit the avatar circle.",
+    "cancel": "Cancel",
+    "upload": "Upload"
+  },
+  "Preferences": {
+    "title": "Account Settings",
+    "description": "Manage your account settings and view transaction history.",
+    "pleaseLogin": "Please login to view your account settings.",
+    "creditHistory": "Credit History",
+    "creditHistoryDescription": "View your recent credit transactions.",
+    "noTransactions": "No transactions found.",
+    "date": "Date",
+    "descriptionLabel": "Description",
+    "statusLabel": "Status",
+    "amount": "Amount",
+    "status": {
+        "completed": "Completed",
+        "pending": "Pending",
+        "failed": "Failed"
     }
   }
 }

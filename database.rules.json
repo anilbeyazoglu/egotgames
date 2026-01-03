@@ -1,0 +1,89 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "presence": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "blocks": {
+      "$uid": {
+        "$blockedUid": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": "auth != null && auth.uid == $uid"
+        }
+      }
+    },
+    "friendRequests": {
+      "$toUid": {
+        ".read": "auth != null && auth.uid == $toUid",
+        "$fromUid": {
+          ".read": "auth != null && (auth.uid == $toUid || auth.uid == $fromUid)",
+          ".write": "auth != null && ((!data.exists() && newData.exists() && auth.uid == $fromUid) || (data.exists() && newData.exists() && auth.uid == $toUid) || (!newData.exists() && (auth.uid == $toUid || auth.uid == $fromUid)))",
+          ".validate": "!newData.exists() || (newData.hasChildren(['status', 'createdAt']) && (newData.child('status').val() == 'pending' || newData.child('status').val() == 'accepted' || newData.child('status').val() == 'rejected'))"
+        }
+      }
+    },
+    "friends": {
+      "$uid": {
+        "$friendUid": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": "auth != null && (auth.uid == $uid || (!data.exists() && auth.uid == $friendUid && root.child('friendRequests/' + auth.uid + '/' + $uid + '/status').val() == 'pending'))"
+        }
+      }
+    },
+    "conversations": {
+      "$cid": {
+        ".read": "auth != null && root.child('participants/' + $cid + '/' + auth.uid).exists()",
+        ".write": "auth != null && ((!data.exists() && newData.child('createdBy').val() == auth.uid) || (data.exists() && root.child('participants/' + $cid + '/' + auth.uid).exists()))",
+        ".validate": "newData.hasChildren(['type', 'createdAt', 'createdBy']) && (newData.child('type').val() == 'direct' || newData.child('type').val() == 'group')",
+        ".indexOn": ["lastMessageAt"]
+      }
+    },
+    "participants": {
+      "$cid": {
+        "$uid": {
+          ".read": "auth != null && root.child('participants/' + $cid + '/' + auth.uid).exists()",
+          ".write": "auth != null && (auth.uid == $uid || root.child('participants/' + $cid + '/' + auth.uid + '/role').val() == 'owner' || root.child('participants/' + $cid + '/' + auth.uid + '/role').val() == 'admin' || (!data.exists() && root.child('friendRequests/' + auth.uid + '/' + $uid + '/status').val() == 'pending' && ($cid == ('direct_' + auth.uid + '_' + $uid) || $cid == ('direct_' + $uid + '_' + auth.uid)) && newData.child('role').val() == 'member'))",
+          ".validate": "newData.hasChildren(['role', 'joinedAt'])"
+        }
+      }
+    },
+    "userConversations": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        "$cid": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": "auth != null && (auth.uid == $uid || (!data.exists() && root.child('friendRequests/' + auth.uid + '/' + $uid + '/status').val() == 'pending' && ($cid == ('direct_' + auth.uid + '_' + $uid) || $cid == ('direct_' + $uid + '_' + auth.uid)) && newData.child('type').val() == 'direct'))"
+        },
+        ".indexOn": ["lastMessageAt"]
+      }
+    },
+    "messages": {
+      "$cid": {
+        "$mid": {
+          ".read": "auth != null && root.child('participants/' + $cid + '/' + auth.uid).exists()",
+          ".write": "auth != null && root.child('participants/' + $cid + '/' + auth.uid).exists() && ((!data.exists() && newData.exists() && newData.child('senderId').val() == auth.uid) || (data.exists() && newData.exists() && (data.child('senderId').val() == auth.uid || root.child('participants/' + $cid + '/' + auth.uid + '/role').val() == 'owner' || root.child('participants/' + $cid + '/' + auth.uid + '/role').val() == 'admin')))",
+          ".validate": "newData.exists() && newData.hasChildren(['senderId', 'type', 'text', 'createdAt']) && newData.child('senderId').isString() && newData.child('type').val() == 'text' && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 5000 && (!data.exists() || newData.child('senderId').val() == data.child('senderId').val()) && (!data.exists() || newData.child('text').val() == data.child('text').val()) && (!data.exists() || newData.child('createdAt').val() == data.child('createdAt').val()) && (!newData.child('deletedAt').exists() || newData.child('deletedBy').val() == auth.uid) && (root.child('conversations/' + $cid + '/type').val() != 'direct' || (newData.child('recipientId').isString() && !root.child('blocks/' + newData.child('senderId').val() + '/' + newData.child('recipientId').val()).exists() && !root.child('blocks/' + newData.child('recipientId').val() + '/' + newData.child('senderId').val()).exists()))"
+        },
+        ".indexOn": ["createdAt"]
+      }
+    },
+    "typing": {
+      "$cid": {
+        "$uid": {
+          ".read": "auth != null && root.child('participants/' + $cid + '/' + auth.uid).exists()",
+          ".write": "auth != null && auth.uid == $uid && root.child('participants/' + $cid + '/' + auth.uid).exists()"
+        }
+      }
+    }
+  }
+}

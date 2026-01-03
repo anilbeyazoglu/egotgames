@@ -27,11 +27,11 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Blocks, Code2, Sparkles } from "lucide-react";
+import type { GameCreationMode } from "@/lib/types";
 
 interface GameType {
   id: string;
@@ -46,6 +46,7 @@ export default function CreateGamePage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedType, setSelectedType] = useState("");
+  const [gameCreationMode, setGameCreationMode] = useState<GameCreationMode>("blockly");
 
   useEffect(() => {
     async function fetchGameTypes() {
@@ -104,6 +105,7 @@ export default function CreateGamePage() {
       const docRef = await addDoc(collection(db, "games"), {
         title,
         description,
+        gameCreationMode,
         typeId: selectedType,
         typeName: typeData?.name || "Unknown",
         ownerId: user.uid,
@@ -145,6 +147,87 @@ export default function CreateGamePage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Game Creation Mode Selection */}
+            <div className="space-y-3">
+              <Label>Development Mode</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Blockly Mode Card */}
+                <button
+                  type="button"
+                  onClick={() => setGameCreationMode("blockly")}
+                  className={`relative p-4 rounded-lg border-2 text-left transition-all ${
+                    gameCreationMode === "blockly"
+                      ? "border-purple-500 bg-purple-500/10"
+                      : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10"
+                  }`}
+                >
+                  {gameCreationMode === "blockly" && (
+                    <div className="absolute top-2 right-2">
+                      <div className="size-5 rounded-full bg-purple-500 flex items-center justify-center">
+                        <svg className="size-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg ${gameCreationMode === "blockly" ? "bg-purple-500/20" : "bg-white/10"}`}>
+                      <Blocks className={`size-6 ${gameCreationMode === "blockly" ? "text-purple-400" : "text-white/60"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-white">Blockly</h3>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/20 text-green-400">
+                          <Sparkles className="size-3" />
+                          Beginner
+                        </span>
+                      </div>
+                      <p className="text-sm text-white/60 mt-1">
+                        Visual block-based programming with AI assistance. Perfect for learning game development.
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* JavaScript Mode Card */}
+                <button
+                  type="button"
+                  onClick={() => setGameCreationMode("javascript")}
+                  className={`relative p-4 rounded-lg border-2 text-left transition-all ${
+                    gameCreationMode === "javascript"
+                      ? "border-yellow-500 bg-yellow-500/10"
+                      : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10"
+                  }`}
+                >
+                  {gameCreationMode === "javascript" && (
+                    <div className="absolute top-2 right-2">
+                      <div className="size-5 rounded-full bg-yellow-500 flex items-center justify-center">
+                        <svg className="size-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg ${gameCreationMode === "javascript" ? "bg-yellow-500/20" : "bg-white/10"}`}>
+                      <Code2 className={`size-6 ${gameCreationMode === "javascript" ? "text-yellow-400" : "text-white/60"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-white">JavaScript</h3>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-500/20 text-orange-400">
+                          Advanced
+                        </span>
+                      </div>
+                      <p className="text-sm text-white/60 mt-1">
+                        Full code editor with p5.js. Maximum flexibility for experienced developers.
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="title">Game Title</Label>
               <Input

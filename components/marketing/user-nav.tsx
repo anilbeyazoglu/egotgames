@@ -93,21 +93,29 @@ export function UserNav() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-white/10" />
-            <DropdownMenuItem className="focus:bg-white/10 focus:text-white cursor-pointer">
-              <UserIcon className="mr-2 h-4 w-4" />
-              <span>{t("userMenu.profile")}</span>
+            <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white cursor-pointer">
+              <Link href="/profile" className="flex items-center w-full">
+                <UserIcon className="mr-2 h-4 w-4" />
+                <span>{t("userMenu.profile")}</span>
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem className="focus:bg-white/10 focus:text-white cursor-pointer">
-              <Gamepad2 className="mr-2 h-4 w-4" />
-              <span>{t("userMenu.games")}</span>
+            <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white cursor-pointer">
+              <Link href="/games" className="flex items-center w-full">
+                <Gamepad2 className="mr-2 h-4 w-4" />
+                <span>{t("userMenu.games")}</span>
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem className="focus:bg-white/10 focus:text-white cursor-pointer">
-              <Layers className="mr-2 h-4 w-4" />
-              <span>{t("userMenu.assets")}</span>
+            <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white cursor-pointer">
+              <Link href="/assets" className="flex items-center w-full">
+                <Layers className="mr-2 h-4 w-4" />
+                <span>{t("userMenu.assets")}</span>
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem className="focus:bg-white/10 focus:text-white cursor-pointer">
-              <Settings className="mr-2 h-4 w-4" />
-              <span>{t("userMenu.preferences")}</span>
+            <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white cursor-pointer">
+              <Link href="/preferences" className="flex items-center w-full">
+                <Settings className="mr-2 h-4 w-4" />
+                <span>{t("userMenu.preferences")}</span>
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/10" />
             <DropdownMenuItem

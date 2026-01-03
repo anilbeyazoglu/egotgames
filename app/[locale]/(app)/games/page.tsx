@@ -14,7 +14,7 @@ import {
   getDocsFromCache,
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
-import { Plus, Gamepad2, Calendar, Users } from "lucide-react";
+import { Plus, Gamepad2, Calendar, Users, Share2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -31,6 +31,8 @@ interface Game {
   typeName: string;
   categoryName: string;
   status: string;
+  coverUrl?: string;
+  ownerName?: string;
   stats?: {
     plays: number;
     likes: number;
@@ -45,7 +47,9 @@ export default function GamesPage() {
   // State for User and Games
   const [user, setUser] = useState<any>(null);
   const [games, setGames] = useState<Game[]>([]);
+  const [sharedGames, setSharedGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingShared, setLoadingShared] = useState(true);
   const [isTimeout, setIsTimeout] = useState(false);
 
   // 1. Auth Listener
@@ -63,7 +67,9 @@ export default function GamesPage() {
       setUser(currentUser);
       if (!currentUser) {
         setLoading(false);
+        setLoadingShared(false);
         setGames([]);
+        setSharedGames([]);
       }
     });
     return () => unsubscribe();
@@ -133,6 +139,43 @@ export default function GamesPage() {
     };
   }, [user]); // Re-run when user changes
 
+  // 3. Shared Games Listener
+  useEffect(() => {
+    let unsubscribeShared: () => void;
+
+    if (user) {
+      setLoadingShared(true);
+
+      const sharedQuery = query(
+        collection(db, "games"),
+        where("sharedWithIds", "array-contains", user.uid)
+      );
+
+      unsubscribeShared = onSnapshot(
+        sharedQuery,
+        (querySnapshot) => {
+          const sharedData: Game[] = [];
+          querySnapshot.forEach((doc) => {
+            sharedData.push({ id: doc.id, ...doc.data() } as Game);
+          });
+          setSharedGames(sharedData);
+          setLoadingShared(false);
+        },
+        (error) => {
+          console.error("Shared games listener error:", error);
+          setLoadingShared(false);
+        }
+      );
+    } else if (user === null) {
+      setLoadingShared(false);
+      setSharedGames([]);
+    }
+
+    return () => {
+      if (unsubscribeShared) unsubscribeShared();
+    };
+  }, [user]);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full space-y-4">
@@ -186,8 +229,16 @@ export default function GamesPage() {
           {games.map((game) => (
             <Link key={game.id} href={`/games/${game.id}`}>
               <Card className="h-full hover:bg-white/5 transition-colors cursor-pointer border-white/10 overflow-hidden">
-                <div className="aspect-video w-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 flex items-center justify-center mb-4">
-                  <Gamepad2 className="h-12 w-12 text-white/20" />
+                <div className="aspect-video w-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 flex items-center justify-center mb-4 relative overflow-hidden">
+                  {game.coverUrl ? (
+                    <img
+                      src={game.coverUrl}
+                      alt={game.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Gamepad2 className="h-12 w-12 text-white/20" />
+                  )}
                 </div>
                 <CardHeader className="p-4 pt-0">
                   <div className="flex items-center justify-between">
@@ -230,6 +281,80 @@ export default function GamesPage() {
           ))}
         </div>
       )}
+
+      {/* Shared with Me Section */}
+      <div className="pt-8 border-t border-white/10">
+        <div className="flex items-center gap-2 mb-6">
+          <Share2 className="h-5 w-5 text-muted-foreground" />
+          <h2 className="text-2xl font-bold tracking-tight">Shared with Me</h2>
+        </div>
+
+        {loadingShared ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        ) : sharedGames.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center animate-in fade-in-50">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-secondary">
+              <Share2 className="h-6 w-6 text-foreground" />
+            </div>
+            <h3 className="mt-4 text-lg font-semibold">No shared games</h3>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              Games that others share with you will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {sharedGames.map((game) => (
+              <Link key={game.id} href={`/play/${game.id}`}>
+                <Card className="h-full hover:bg-white/5 transition-colors cursor-pointer border-white/10 overflow-hidden">
+                  <div className="aspect-video w-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 flex items-center justify-center mb-4 relative overflow-hidden">
+                    {game.coverUrl ? (
+                      <img
+                        src={game.coverUrl}
+                        alt={game.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Gamepad2 className="h-12 w-12 text-white/20" />
+                    )}
+                  </div>
+                  <CardHeader className="p-4 pt-0">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="mb-2">
+                        {game.typeName || "Game"}
+                      </Badge>
+                      <Badge className="bg-blue-500/10 text-blue-500 hover:bg-blue-500/20">
+                        Shared
+                      </Badge>
+                    </div>
+                    <CardTitle className="line-clamp-1">{game.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0">
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {game.description || "No description provided."}
+                    </p>
+                  </CardContent>
+                  <CardFooter className="p-4 pt-0 text-xs text-muted-foreground flex justify-between items-center mt-auto">
+                    <div className="flex items-center gap-1">
+                      <Users className="h-3 w-3" />
+                      <span>{game.stats?.plays || 0}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      <span>
+                        {game.createdAt?.toDate
+                          ? new Date(game.createdAt.toDate()).toLocaleDateString()
+                          : "Just now"}
+                      </span>
+                    </div>
+                  </CardFooter>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

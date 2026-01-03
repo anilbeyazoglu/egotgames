@@ -29,6 +29,7 @@ Stores game projects.
   - `title` (string).
   - `slug` (string).
   - `description` (string).
+  - `gameCreationMode` (string): 'blockly' | 'javascript'. Determines the editor experience.
   - `typeId` (string): Reference to `game_types` document.
   - `typeName` (string): Denormalized type name (e.g., "Retro 2D Pixel Art").
   - `categoryId` (string): Reference to `game_categories`.
@@ -105,21 +106,53 @@ Stores game assets (sprites, sounds, tilesets).
   - `cost` (number): Credits used to generate (audit).
   - `createdAt` (timestamp).
 
-### 8. `generations`
+### 8. `publicAssets`
 
-Logs AI generation requests.
+Free public asset library. Assets shared by users for the community.
 
 - **Document ID**: Auto-generated
 - **Fields**:
-  - `userId` (string).
-  - `prompt` (string).
-  - `cost` (number): Credits calculated for this job.
-  - `status` (string).
-  - `result` (map).
+  - `name` (string): Asset display name.
+  - `description` (string): Asset description.
+  - `url` (string): Firebase Storage download URL.
+  - `thumbnailUrl` (string, optional): Smaller preview image.
+  - `storagePath` (string): Path in Firebase Storage.
+  - `type` (string): 'sprite' | 'tileset' | 'background' | 'ui' | 'animation' | 'sound' | 'other'.
+  - `tags` (array<string>): Searchable tags.
+  - `width` (number): Image width in pixels.
+  - `height` (number): Image height in pixels.
+  - `fileSize` (number): File size in bytes.
+  - `format` (string): 'png' | 'gif' | 'json' | 'mp3'.
+  - `creatorId` (string): User ID of creator.
+  - `creatorName` (string): Denormalized creator display name.
+  - `isGenerated` (boolean): True if AI-generated.
+  - `generationPrompt` (string, optional): Original AI prompt.
+  - `downloadCount` (number): Total downloads.
+  - `likeCount` (number): Total likes.
+  - `useCount` (number): Games using this asset.
+  - `featured` (boolean): Staff pick.
+  - `trending` (boolean): Algorithm-set trending flag.
+  - `status` (string): 'pending' | 'approved' | 'rejected'.
+  - `moderatedAt` (timestamp, optional): When moderated.
+  - `moderatedBy` (string, optional): Admin who moderated.
+  - `createdAt` (timestamp).
+  - `updatedAt` (timestamp).
+- **Subcollections**:
+  - `likes/{userId}`: Tracks which users liked the asset.
+
+### 9. `publicAssetDownloads`
+
+Analytics for public asset downloads.
+
+- **Document ID**: Auto-generated
+- **Fields**:
+  - `assetId` (string): The downloaded asset.
+  - `userId` (string, optional): User who downloaded (null if anonymous).
+  - `downloadedAt` (timestamp).
 
 ## Credit System Tables
 
-### 9. `credit_packages`
+### 10. `credit_packages`
 
 Catalog of purchasable credit bundles.
 
@@ -131,7 +164,7 @@ Catalog of purchasable credit bundles.
   - `currency` (string): "USD".
   - `isActive` (boolean).
 
-### 10. `payments`
+### 11. `payments`
 
 Record of real-money transactions.
 
@@ -146,7 +179,7 @@ Record of real-money transactions.
   - `providerRef` (string): External transaction ID.
   - `createdAt` (timestamp).
 
-### 11. `credit_transactions`
+### 12. `credit_transactions`
 
 Ledger for all credit movements (purchases and usage).
 
