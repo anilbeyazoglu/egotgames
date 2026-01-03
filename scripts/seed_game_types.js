@@ -14,7 +14,6 @@ if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
   const serviceAccount = require(serviceAccountPath);
   appConfig.credential = admin.credential.cert(serviceAccount);
 } else {
-  // Fallback to ADC (will fail if no gcloud)
   console.log(
     "No service-account.json found. Attempting to use Application Default Credentials (ADC)..."
   );
@@ -38,8 +37,8 @@ if (!admin.apps.length) {
 const { getFirestore } = require("firebase-admin/firestore");
 const db = getFirestore(admin.app(), "egotgames-prod");
 
-async function seedDatabase() {
-  console.log("Starting database seed...");
+async function seedGameTypes() {
+  console.log("Starting game types & categories seed...\n");
 
   try {
     const collections = await db.listCollections();
@@ -49,10 +48,10 @@ async function seedDatabase() {
     );
   } catch (err) {
     console.error("Connection test failed:", err.message);
-    // If listCollections fails with NOT_FOUND, it definitely means Project/DB ID issue
+    process.exit(1);
   }
 
-  // 1. Game Categories
+  // Game Categories (will update existing or create new)
   const categories = [
     {
       id: "arcade",
@@ -101,6 +100,7 @@ async function seedDatabase() {
     },
   ];
 
+  console.log("\n--- Seeding Categories ---");
   for (const category of categories) {
     await db.collection("game_categories").doc(category.id).set({
       name: category.name,
@@ -108,11 +108,11 @@ async function seedDatabase() {
       description: category.description,
       isActive: true,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    console.log("Created Category: " + category.name);
+    }, { merge: true });
+    console.log("✓ Category: " + category.name);
   }
 
-  // 2. Game Types (linked to categories)
+  // Game Types
   const gameTypes = [
     // Arcade Games (p5.js)
     {
@@ -484,6 +484,7 @@ async function seedDatabase() {
     },
   ];
 
+  console.log("\n--- Seeding Game Types ---");
   for (const gameType of gameTypes) {
     await db.collection("game_types").doc(gameType.id).set({
       categoryId: gameType.categoryId,
@@ -497,48 +498,15 @@ async function seedDatabase() {
       },
       isActive: true,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    console.log("Created Game Type: " + gameType.name);
+    }, { merge: true });
+    console.log("✓ Game Type: " + gameType.name);
   }
 
-  // 3. Credit Packages
-  const packages = [
-    {
-      id: "starter",
-      name: "Starter Pack",
-      credits: 100,
-      price: 9.99,
-      currency: "USD",
-    },
-    {
-      id: "pro",
-      name: "Pro Pack",
-      credits: 500,
-      price: 39.99,
-      currency: "USD",
-    },
-    {
-      id: "enterprise",
-      name: "Studio Pack",
-      credits: 2000,
-      price: 149.99,
-      currency: "USD",
-    },
-  ];
-
-  for (const pkg of packages) {
-    await db
-      .collection("credit_packages")
-      .doc(pkg.id)
-      .set({
-        ...pkg,
-        isActive: true,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    console.log("Created Credit Package: " + pkg.name);
-  }
-
-  console.log("Database seeding completed successfully.");
+  console.log("\n========================================");
+  console.log(`Seeding complete!`);
+  console.log(`  Categories: ${categories.length}`);
+  console.log(`  Game Types: ${gameTypes.length}`);
+  console.log("========================================\n");
 }
 
-seedDatabase().catch(console.error);
+seedGameTypes().catch(console.error);
