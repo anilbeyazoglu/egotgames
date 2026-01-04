@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
 import {
@@ -169,8 +169,16 @@ export function useChatSession(sessionId: string | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // Use ref to ensure addMessage always has access to latest sessionId
+  // Initialize with current value and also update via effect
+  const sessionIdRef = useRef<string | null>(sessionId);
+  // Update immediately on each render (before effects run)
+  sessionIdRef.current = sessionId;
+
   // Fetch session and messages when sessionId changes
   useEffect(() => {
+    console.log("[useChatSession hook] sessionId changed to:", sessionId);
+
     if (!sessionId) {
       setSession(null);
       setMessages([]);
@@ -184,6 +192,7 @@ export function useChatSession(sessionId: string | null) {
     const sessionRef = doc(db, "chat_sessions", sessionId);
     getDoc(sessionRef)
       .then((docSnap) => {
+        console.log("[useChatSession hook] Session doc exists:", docSnap.exists());
         if (docSnap.exists()) {
           setSession({ id: docSnap.id, ...docSnap.data() } as ChatSession);
         }
@@ -199,9 +208,12 @@ export function useChatSession(sessionId: string | null) {
       orderBy("createdAt", "asc")
     );
 
+    console.log("[useChatSession hook] Subscribing to messages for session:", sessionId);
+
     const unsubscribeMessages = onSnapshot(
       messagesQuery,
       (snapshot) => {
+        console.log("[useChatSession hook] Messages snapshot received:", snapshot.docs.length, "messages");
         const messageList: ChatMessage[] = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
@@ -245,9 +257,17 @@ export function useChatSession(sessionId: string | null) {
   const addMessage = useCallback(
     async (
       role: "user" | "assistant",
-      parts: ChatMessagePart[]
+      parts: ChatMessagePart[],
+      overrideSessionId?: string | null
     ): Promise<ChatMessage | null> => {
-      if (!sessionId) return null;
+      // Use override if provided, otherwise use ref (avoids closure issues)
+      const currentSessionId = overrideSessionId ?? sessionIdRef.current;
+      if (!currentSessionId) {
+        console.log("[addMessage] No session ID, skipping message save");
+        return null;
+      }
+
+      console.log("[addMessage] Saving", role, "message to session:", currentSessionId);
 
       try {
         const now = serverTimestamp();
@@ -257,8 +277,8 @@ export function useChatSession(sessionId: string | null) {
           createdAt: now,
         };
 
-        const sessionRef = doc(db, "chat_sessions", sessionId);
-        const messagesRef = collection(db, "chat_sessions", sessionId, "messages");
+        const sessionRef = doc(db, "chat_sessions", currentSessionId);
+        const messagesRef = collection(db, "chat_sessions", currentSessionId, "messages");
 
         // Add message
         const msgDocRef = await addDoc(messagesRef, messageData);

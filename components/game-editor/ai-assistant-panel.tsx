@@ -217,7 +217,13 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [gameContextSummary, setGameContextSummary] = useState<string | null>(null);
   const pendingUserMessageRef = useRef<string | null>(null);
+  const currentSessionIdRef = useRef<string | null>(null);
   const autostartTriggeredRef = useRef(false);
+
+  // Keep ref in sync with state (ref is needed for closure in onFinish callback)
+  useEffect(() => {
+    currentSessionIdRef.current = currentSessionId;
+  }, [currentSessionId]);
 
   // Listen to game's context summary
   useEffect(() => {
@@ -251,6 +257,16 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
     deleteCheckpoint,
     archiveAfterCheckpoint,
   } = useChatSession(currentSessionId);
+
+  // Debug: Log when currentSessionId changes
+  useEffect(() => {
+    console.log("[useChatSession] currentSessionId changed to:", currentSessionId);
+  }, [currentSessionId]);
+
+  // Debug: Log when sessionMessages changes
+  useEffect(() => {
+    console.log("[useChatSession] sessionMessages updated:", sessionMessages.length, "messages");
+  }, [sessionMessages]);
 
   // Select API endpoint based on creation mode
   const apiEndpoint = gameCreationMode === "javascript"
@@ -295,11 +311,15 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
         }
       }
 
-      // Persist messages to session
-      if (currentSessionId) {
+      // Persist messages to session (use ref to get latest value from closure)
+      const sessionId = currentSessionIdRef.current;
+      if (sessionId) {
+        console.log("[onFinish] Persisting messages to session:", sessionId);
+
         // Persist user message first (if we have it)
         if (pendingUserMessageRef.current) {
-          await addMessage("user", [{ type: "text", text: pendingUserMessageRef.current }]);
+          console.log("[onFinish] Saving user message:", pendingUserMessageRef.current.substring(0, 50) + "...");
+          await addMessage("user", [{ type: "text", text: pendingUserMessageRef.current }], sessionId);
         }
 
         // Persist assistant message
@@ -320,7 +340,9 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
           return { type: "text" as const, text: "" };
         }).filter((p) => p.type === "text" ? p.text : true);
 
-        const savedMessage = await addMessage("assistant", chatParts);
+        console.log("[onFinish] Saving assistant message with", chatParts.length, "parts");
+        const savedMessage = await addMessage("assistant", chatParts, sessionId);
+        console.log("[onFinish] Assistant message saved:", savedMessage?.id);
 
         // Create checkpoint if code was modified
         if (codeWasModified && savedMessage) {
@@ -383,6 +405,8 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
 
   // Display messages: use chatMessages for current conversation, sessionMessages for history
   const allMessages = useMemo(() => {
+    console.log("[Messages] chatMessages:", chatMessages.length, "sessionMessages:", sessionMessages.length);
+
     // If there are active chat messages, show those (current conversation)
     if (chatMessages.length > 0) {
       return chatMessages.map((msg) => ({
@@ -567,12 +591,15 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
   // Send current workspace/code with each message based on mode
   const handleSendMessage = useCallback(async (text: string) => {
     // Create session if none exists
-    let sessionId = currentSessionId;
+    let sessionId = currentSessionIdRef.current;
     if (!sessionId) {
       const newSession = await createSession(gameCreationMode);
       if (newSession) {
         sessionId = newSession.id;
+        // Update both ref and state - ref is needed for onFinish callback
+        currentSessionIdRef.current = sessionId;
         setCurrentSessionId(sessionId);
+        console.log("[handleSendMessage] Created new session:", sessionId);
       } else {
         console.error("Failed to create session!");
         return;
@@ -593,34 +620,57 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
   }, [currentSessionId, createSession, gameCreationMode, code, gameContextSummary, workspace.blocks, sendMessage]);
 
   // Auto-load newest session on mount (if sessions exist)
+  // Also handles auto-start logic to avoid race conditions
   const sessionLoadedRef = useRef(false);
-
-  useEffect(() => {
-    if (!sessionsLoading && !sessionLoadedRef.current && sessions.length > 0) {
-      sessionLoadedRef.current = true;
-      // Load the newest session (sessions are sorted by createdAt desc)
-      const newestSession = sessions[0];
-      setCurrentSessionId(newestSession.id);
-      console.log("[Session] Loaded existing session:", newestSession.id);
-    }
-  }, [sessionsLoading, sessions]);
-
-  // Auto-start: set input and trigger submit when autostart flag is true
-  // Only if there are no existing sessions (first time creating the game)
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
-    // Only trigger once, when all conditions are met AND no existing sessions
+    // Wait until sessions are loaded
+    if (sessionsLoading) {
+      console.log("[Session] Still loading sessions...");
+      return;
+    }
+
+    console.log("[Session] Sessions loaded:", sessions.length, "sessions found");
+
+    // Helper to remove autostart query param from URL (prevents re-trigger on refresh)
+    const removeAutostartFromUrl = () => {
+      if (typeof window !== "undefined" && window.location.search.includes("autostart")) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("autostart");
+        window.history.replaceState({}, "", url.toString());
+        console.log("[Session] Removed autostart param from URL");
+      }
+    };
+
+    // If we have existing sessions, load the newest one
+    if (sessions.length > 0 && !sessionLoadedRef.current) {
+      sessionLoadedRef.current = true;
+      autostartTriggeredRef.current = true; // Don't auto-start if we have sessions
+      const newestSession = sessions[0];
+      setCurrentSessionId(newestSession.id);
+      // Also update the ref immediately
+      currentSessionIdRef.current = newestSession.id;
+      console.log("[Session] Loaded existing session:", newestSession.id);
+      // Remove autostart from URL to prevent re-trigger on refresh
+      removeAutostartFromUrl();
+      return;
+    }
+
+    // If no sessions exist and autostart is enabled, trigger auto-start
     if (
+      sessions.length === 0 &&
       autostart &&
       initialPrompt &&
       !autostartTriggeredRef.current &&
-      !sessionsLoading &&
-      sessions.length === 0 && // Only auto-start if no sessions exist
       (status === "ready" || status === undefined)
     ) {
-      console.log("[AutoStart] No existing sessions, setting input and triggering submit");
+      console.log("[AutoStart] No existing sessions, triggering auto-start");
       autostartTriggeredRef.current = true;
+      sessionLoadedRef.current = true;
+
+      // Remove autostart from URL immediately to prevent re-trigger on refresh
+      removeAutostartFromUrl();
 
       // Set the input value and trigger form submit
       setInput(initialPrompt);
@@ -630,7 +680,7 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
         formRef.current?.requestSubmit();
       }, 100);
     }
-  }, [autostart, initialPrompt, sessionsLoading, sessions.length, status]);
+  }, [sessionsLoading, sessions, autostart, initialPrompt, status]);
 
   const isLoading = status === "streaming" || status === "submitted";
 

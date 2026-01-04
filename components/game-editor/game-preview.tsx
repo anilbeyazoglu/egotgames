@@ -161,6 +161,16 @@ export function GamePreview() {
     setTimeout(handlePlay, 100);
   };
 
+  const handleFullscreen = () => {
+    if (iframeRef.current) {
+      if (iframeRef.current.requestFullscreen) {
+        iframeRef.current.requestFullscreen();
+      } else if ((iframeRef.current as HTMLIFrameElement & { webkitRequestFullscreen?: () => void }).webkitRequestFullscreen) {
+        (iframeRef.current as HTMLIFrameElement & { webkitRequestFullscreen: () => void }).webkitRequestFullscreen();
+      }
+    }
+  };
+
   // Handle save as cover image
   const handleSaveCover = useCallback(() => {
     if (!iframeRef.current?.contentWindow || !gameId) {
@@ -285,7 +295,14 @@ export function GamePreview() {
               <span className="text-xs">Cover</span>
             </Button>
           )}
-          <Button size="sm" variant="ghost" className="h-7 px-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2"
+            onClick={handleFullscreen}
+            disabled={!gameState.isPlaying}
+            title="Fullscreen"
+          >
             <Maximize2 className="size-3" />
           </Button>
         </div>
