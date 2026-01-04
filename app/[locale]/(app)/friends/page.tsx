@@ -607,6 +607,7 @@ export default function FriendsPage() {
 
         <Card className="border-white/10 bg-neutral-900 text-white flex flex-col h-full">
           <Tabs
+            defaultValue="friends"
             value={rightTab}
             onValueChange={(value) => setRightTab(value as "conversation" | "friends")}
             className="flex h-full flex-col"

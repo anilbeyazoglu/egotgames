@@ -378,7 +378,10 @@ export default function AdminAssetLibraryPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="type">Type</Label>
-              <Select value={type} onValueChange={(value) => setType(value as PublicAssetType)}>
+              <Select
+                value={type}
+                onValueChange={(value: string) => setType(value as PublicAssetType)}
+              >
                 <SelectTrigger id="type" className="bg-white/5 border-white/10">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>

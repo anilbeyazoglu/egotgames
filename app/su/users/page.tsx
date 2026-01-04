@@ -116,16 +116,20 @@ export default function AdminUsersPage() {
       (snapshot) => {
         const next = snapshot.docs.map((doc) => {
           const data = doc.data() as any;
-          const status =
-            (data.status as AdminUser["status"]) ||
-            (data.disabled ? "suspended" : "active");
+          const rawStatus = typeof data.status === "string" ? data.status : "";
+          const resolvedStatus: AdminUser["status"] =
+            rawStatus === "invited" || rawStatus === "suspended"
+              ? rawStatus
+              : data.disabled
+                ? "suspended"
+                : "active";
           return {
             id: doc.id,
             name: data.displayName || data.name || data.username || "Unknown",
             email: data.email || "—",
             role: data.role || "Member",
             games: data.gamesCount || data.gameCount || 0,
-            status: status === "invited" || status === "suspended" ? status : "active",
+            status: resolvedStatus,
             joined: formatDate(data.createdAt),
           };
         });
