@@ -23,6 +23,7 @@ import type {
   ChatSession,
   ChatMessage,
   ChatMessagePart,
+  ChatCheckpoint,
   GameCreationMode,
 } from "@/lib/types";
 
@@ -164,6 +165,7 @@ export function useChatSessions(gameId: string) {
 export function useChatSession(sessionId: string | null) {
   const [session, setSession] = useState<ChatSession | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [checkpoints, setCheckpoints] = useState<ChatCheckpoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -172,6 +174,7 @@ export function useChatSession(sessionId: string | null) {
     if (!sessionId) {
       setSession(null);
       setMessages([]);
+      setCheckpoints([]);
       return;
     }
 
@@ -196,7 +199,7 @@ export function useChatSession(sessionId: string | null) {
       orderBy("createdAt", "asc")
     );
 
-    const unsubscribe = onSnapshot(
+    const unsubscribeMessages = onSnapshot(
       messagesQuery,
       (snapshot) => {
         const messageList: ChatMessage[] = snapshot.docs.map((doc) => ({
@@ -213,7 +216,30 @@ export function useChatSession(sessionId: string | null) {
       }
     );
 
-    return () => unsubscribe();
+    // Subscribe to checkpoints
+    const checkpointsQuery = query(
+      collection(db, "chat_sessions", sessionId, "checkpoints"),
+      orderBy("createdAt", "asc")
+    );
+
+    const unsubscribeCheckpoints = onSnapshot(
+      checkpointsQuery,
+      (snapshot) => {
+        const checkpointList: ChatCheckpoint[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as ChatCheckpoint[];
+        setCheckpoints(checkpointList);
+      },
+      (err) => {
+        console.error("Error fetching checkpoints:", err);
+      }
+    );
+
+    return () => {
+      unsubscribeMessages();
+      unsubscribeCheckpoints();
+    };
   }, [sessionId]);
 
   const addMessage = useCallback(
@@ -339,14 +365,94 @@ export function useChatSession(sessionId: string | null) {
     [sessionId]
   );
 
+  const createCheckpoint = useCallback(
+    async (
+      messageId: string,
+      chatMessageId: string | undefined,
+      codeSnapshot: string | null,
+      workspaceSnapshot: string | null,
+      contextSummary: string | null = null
+    ): Promise<ChatCheckpoint | null> => {
+      if (!sessionId) return null;
+
+      try {
+        const checkpointNumber = checkpoints.length + 1;
+        const now = serverTimestamp();
+        const checkpointData = {
+          sessionId,
+          messageId,
+          chatMessageId: chatMessageId || null,
+          label: `Checkpoint ${checkpointNumber}`,
+          codeSnapshot,
+          workspaceSnapshot,
+          contextSummary,
+          createdAt: now,
+        };
+
+        const checkpointsRef = collection(db, "chat_sessions", sessionId, "checkpoints");
+        const docRef = await addDoc(checkpointsRef, checkpointData);
+
+        return {
+          id: docRef.id,
+          ...checkpointData,
+          createdAt: Timestamp.now(),
+        } as ChatCheckpoint;
+      } catch (err) {
+        console.error("Error creating checkpoint:", err);
+        setError(err instanceof Error ? err : new Error("Unknown error"));
+        return null;
+      }
+    },
+    [sessionId, checkpoints.length]
+  );
+
+  const updateCheckpointSummary = useCallback(
+    async (checkpointId: string, contextSummary: string): Promise<boolean> => {
+      if (!sessionId) return false;
+
+      try {
+        const checkpointRef = doc(db, "chat_sessions", sessionId, "checkpoints", checkpointId);
+        await updateDoc(checkpointRef, { contextSummary });
+        return true;
+      } catch (err) {
+        console.error("Error updating checkpoint summary:", err);
+        return false;
+      }
+    },
+    [sessionId]
+  );
+
+  const deleteCheckpoint = useCallback(
+    async (checkpointId: string): Promise<boolean> => {
+      if (!sessionId) return false;
+
+      try {
+        const checkpointRef = doc(db, "chat_sessions", sessionId, "checkpoints", checkpointId);
+        const batch = writeBatch(db);
+        batch.delete(checkpointRef);
+        await batch.commit();
+        return true;
+      } catch (err) {
+        console.error("Error deleting checkpoint:", err);
+        setError(err instanceof Error ? err : new Error("Unknown error"));
+        return false;
+      }
+    },
+    [sessionId]
+  );
+
   return {
     session,
     messages,
+    checkpoints,
     loading,
     error,
     addMessage,
     updateSession,
     generateTitle,
+    createCheckpoint,
+    updateCheckpointSummary,
+    deleteCheckpoint,
     setMessages,
   };
 }

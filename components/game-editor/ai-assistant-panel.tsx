@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import type { ToolUIPart, UIMessage } from "ai";
+import type { ToolUIPart } from "ai";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -27,7 +27,10 @@ import { useEditor } from "./editor-context";
 import { useRef, useEffect, FormEvent, KeyboardEvent, useState, useMemo, useCallback } from "react";
 import { useChatSessions, useChatSession } from "@/hooks/use-chat-sessions";
 import { ChatSessionPopover } from "./chat-session-popover";
-import type { ChatMessagePart, ChatMessageToolPart } from "@/lib/types";
+import { CheckpointItem } from "./checkpoint-item";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc, onSnapshot } from "firebase/firestore";
+import type { ChatMessagePart, ChatMessageToolPart, ChatCheckpoint } from "@/lib/types";
 
 interface AIAssistantPanelProps {
   gameId: string;
@@ -48,47 +51,54 @@ interface MessagePart {
 }
 
 // Helper to extract newWorkspace from tool results in message parts
+// Returns the LAST newWorkspace found (for agentic loops with multiple tool calls)
 function extractNewWorkspaceFromParts(parts: MessagePart[]): string | null {
+  let lastWorkspace: string | null = null;
   for (const part of parts) {
     // Check for tool type (AI SDK uses "tool-{toolName}" format)
     if (isToolInvocation(part)) {
       const toolOutput = (part.output || part.result) as { newWorkspace?: string } | undefined;
       if (toolOutput?.newWorkspace) {
-        return toolOutput.newWorkspace;
+        lastWorkspace = toolOutput.newWorkspace;
       }
     }
   }
-  return null;
+  return lastWorkspace;
+}
+
+// Check if a part is any tool invocation
+function isToolInvocation(part: MessagePart): boolean {
+  // AI SDK uses "tool-{toolName}" format, stored format uses "tool-invocation"
+  return part.type.startsWith("tool-") || part.type === "tool-invocation";
 }
 
 // Check if a part is a Blockly tool invocation
 function isBlocklyToolInvocation(part: MessagePart): boolean {
   return part.type === "tool-str_replace_based_edit_tool" ||
-         (part.type === "tool-invocation" && part.toolName === "str_replace_based_edit_tool");
+         (part.type === "tool-invocation" && part.toolName === "str_replace_based_edit_tool") ||
+         part.toolName === "str_replace_based_edit_tool";
 }
 
 // Check if a part is a JS code tool invocation
 function isJSToolInvocation(part: MessagePart): boolean {
   return part.type === "tool-js_code_editor" ||
-         (part.type === "tool-invocation" && part.toolName === "js_code_editor");
-}
-
-// Check if a part is any tool invocation
-function isToolInvocation(part: MessagePart): boolean {
-  return isBlocklyToolInvocation(part) || isJSToolInvocation(part);
+         (part.type === "tool-invocation" && part.toolName === "js_code_editor") ||
+         part.toolName === "js_code_editor";
 }
 
 // Extract newCode from JS tool results
+// Returns the LAST newCode found (for agentic loops with multiple tool calls)
 function extractNewCodeFromParts(parts: MessagePart[]): string | null {
+  let lastCode: string | null = null;
   for (const part of parts) {
     if (isJSToolInvocation(part)) {
       const toolOutput = (part.output || part.result) as { newCode?: string } | undefined;
       if (toolOutput?.newCode) {
-        return toolOutput.newCode;
+        lastCode = toolOutput.newCode;
       }
     }
   }
-  return null;
+  return lastCode;
 }
 
 // Get input from tool part (handles both input and args properties)
@@ -103,11 +113,11 @@ function getToolOutput(part: MessagePart): { success?: boolean; message?: string
 
 // Get friendly tool title based on command and tool type
 function getToolTitle(part: MessagePart, input: Record<string, unknown> | undefined): string {
-  if (!input) return "Editor";
-  const command = input.command as string;
+  const command = input?.command as string | undefined;
 
-  // JavaScript mode tool
-  if (isJSToolInvocation(part)) {
+  // JavaScript mode tool (check by toolName OR by JS-specific commands)
+  const isJSTool = isJSToolInvocation(part) || command === "replace" || command === "patch";
+  if (isJSTool) {
     switch (command) {
       case "view":
         return "Viewing Code";
@@ -120,26 +130,35 @@ function getToolTitle(part: MessagePart, input: Record<string, unknown> | undefi
     }
   }
 
-  // Blockly mode tool
-  switch (command) {
-    case "view":
-      return "Viewing Workspace";
-    case "create":
-      return "Creating Blocks";
-    case "str_replace":
-      return "Editing Blocks";
-    default:
-      return "Block Editor";
+  // Blockly mode tool (check by toolName OR by Blockly-specific commands)
+  const isBlocklyTool = isBlocklyToolInvocation(part) || command === "create" || command === "str_replace";
+  if (isBlocklyTool) {
+    switch (command) {
+      case "view":
+        return "Viewing Workspace";
+      case "create":
+        return "Creating Blocks";
+      case "str_replace":
+        return "Editing Blocks";
+      default:
+        return "Block Editor";
+    }
   }
+
+  // Fallback: infer from command if available
+  if (command === "view") return "Viewing";
+  if (command) return `Running ${command}`;
+
+  return "Editor";
 }
 
 // Get tool icon based on command and tool type
 function getToolIcon(part: MessagePart, input: Record<string, unknown> | undefined) {
-  if (!input) return <FileCode className="size-4" />;
-  const command = input.command as string;
+  const command = input?.command as string | undefined;
 
-  // JavaScript mode tool
-  if (isJSToolInvocation(part)) {
+  // JavaScript mode tool (check by toolName OR by JS-specific commands)
+  const isJSTool = isJSToolInvocation(part) || command === "replace" || command === "patch";
+  if (isJSTool) {
     switch (command) {
       case "view":
         return <Eye className="size-4 text-blue-400" />;
@@ -152,17 +171,25 @@ function getToolIcon(part: MessagePart, input: Record<string, unknown> | undefin
     }
   }
 
-  // Blockly mode tool
-  switch (command) {
-    case "view":
-      return <Eye className="size-4 text-blue-400" />;
-    case "create":
-      return <PlusCircle className="size-4 text-green-400" />;
-    case "str_replace":
-      return <Replace className="size-4 text-yellow-400" />;
-    default:
-      return <FileCode className="size-4" />;
+  // Blockly mode tool (check by toolName OR by Blockly-specific commands)
+  const isBlocklyTool = isBlocklyToolInvocation(part) || command === "create" || command === "str_replace";
+  if (isBlocklyTool) {
+    switch (command) {
+      case "view":
+        return <Eye className="size-4 text-blue-400" />;
+      case "create":
+        return <PlusCircle className="size-4 text-green-400" />;
+      case "str_replace":
+        return <Replace className="size-4 text-yellow-400" />;
+      default:
+        return <FileCode className="size-4" />;
+    }
   }
+
+  // Fallback based on command
+  if (command === "view") return <Eye className="size-4 text-blue-400" />;
+
+  return <FileCode className="size-4" />;
 }
 
 // Convert ChatMessagePart to MessagePart format for rendering
@@ -185,7 +212,20 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [gameContextSummary, setGameContextSummary] = useState<string | null>(null);
   const pendingUserMessageRef = useRef<string | null>(null);
+
+  // Listen to game's context summary
+  useEffect(() => {
+    const gameRef = doc(db, "games", gameId);
+    const unsubscribe = onSnapshot(gameRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setGameContextSummary(data.gameContextSummary || null);
+      }
+    });
+    return () => unsubscribe();
+  }, [gameId]);
 
   // Session management hooks
   const {
@@ -198,10 +238,13 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
   const {
     session: currentSession,
     messages: sessionMessages,
+    checkpoints,
     addMessage,
     updateSession,
     generateTitle,
-    setMessages: setSessionMessages,
+    createCheckpoint,
+    updateCheckpointSummary,
+    deleteCheckpoint,
   } = useChatSession(currentSessionId);
 
   // Select API endpoint based on creation mode
@@ -215,23 +258,35 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
     [apiEndpoint]
   );
 
-  const { messages, sendMessage, status, error, setMessages } = useChat({
-    id: `game-editor-${gameId}-${gameCreationMode}-${currentSessionId || "new"}`,
+  // Reset chat when session changes
+  const chatId = `game-editor-${gameId}-${gameCreationMode}-${currentSessionId || "new"}`;
+
+  const { messages: chatMessages, sendMessage, status, error } = useChat({
+    id: chatId,
     transport,
     onFinish: async ({ message }) => {
       const parts = message.parts as MessagePart[];
+
+      // Track if code was modified
+      let codeWasModified = false;
+      let newCodeSnapshot: string | null = null;
+      let newWorkspaceSnapshot: string | null = null;
 
       if (gameCreationMode === "javascript") {
         // JavaScript mode: extract code from js_code_editor tool
         const newCode = extractNewCodeFromParts(parts);
         if (newCode) {
           loadAICode(newCode);
+          codeWasModified = true;
+          newCodeSnapshot = newCode;
         }
       } else {
         // Blockly mode: extract workspace from str_replace_based_edit_tool
         const newWorkspace = extractNewWorkspaceFromParts(parts);
         if (newWorkspace) {
           loadAIWorkspace(newWorkspace);
+          codeWasModified = true;
+          newWorkspaceSnapshot = newWorkspace;
         }
       }
 
@@ -254,7 +309,26 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
           return { type: "text" as const, text: "" };
         }).filter((p) => p.type === "text" ? p.text : true);
 
-        await addMessage("assistant", chatParts);
+        const savedMessage = await addMessage("assistant", chatParts);
+
+        // Create checkpoint if code was modified
+        if (codeWasModified && savedMessage) {
+          const checkpoint = await createCheckpoint(
+            savedMessage.id,
+            message.id, // AI SDK message ID for matching current messages
+            newCodeSnapshot,
+            newWorkspaceSnapshot
+          );
+
+          // Generate context summary asynchronously (don't await to not block UI)
+          if (checkpoint) {
+            generateContextSummary(
+              checkpoint.id,
+              newCodeSnapshot,
+              newWorkspaceSnapshot
+            );
+          }
+        }
 
         // Update snapshot
         if (gameCreationMode === "javascript") {
@@ -272,31 +346,39 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
     },
   });
 
-  // Load session messages when session changes
-  useEffect(() => {
-    if (sessionMessages.length > 0 && currentSessionId) {
-      // Convert session messages to UIMessage format
-      // Using type assertion since our stored format is compatible at runtime
-      const uiMessages = sessionMessages.map((msg) => ({
-        id: msg.id,
-        role: msg.role,
-        parts: msg.parts.map(convertToMessagePart),
-        createdAt: msg.createdAt?.toDate?.() || new Date(),
-      })) as unknown as UIMessage[];
-      setMessages(uiMessages);
-    } else if (!currentSessionId) {
-      setMessages([]);
-    }
-  }, [sessionMessages, currentSessionId, setMessages]);
+  // Combine historical messages from Firestore with current chat messages
+  // Historical messages are displayed but not sent to AI (AI gets context via workspace/code)
+  const allMessages = useMemo(() => {
+    // Convert session messages to display format
+    const historicalMessages = sessionMessages.map((msg) => ({
+      id: msg.id,
+      role: msg.role as "user" | "assistant",
+      parts: msg.parts.map(convertToMessagePart),
+      isHistorical: true,
+    }));
+
+    // Current chat messages (from this session's active conversation)
+    const currentMessages = chatMessages.map((msg) => ({
+      id: msg.id,
+      role: msg.role as "user" | "assistant",
+      parts: msg.parts as MessagePart[],
+      isHistorical: false,
+    }));
+
+    // Deduplicate - if a message ID exists in both, prefer the historical one
+    const historicalIds = new Set(historicalMessages.map((m) => m.id));
+    const uniqueCurrentMessages = currentMessages.filter((m) => !historicalIds.has(m.id));
+
+    return [...historicalMessages, ...uniqueCurrentMessages];
+  }, [sessionMessages, chatMessages]);
 
   // Handle new session creation
   const handleNewSession = useCallback(async () => {
     const newSession = await createSession(gameCreationMode);
     if (newSession) {
       setCurrentSessionId(newSession.id);
-      setMessages([]);
     }
-  }, [createSession, gameCreationMode, setMessages]);
+  }, [createSession, gameCreationMode]);
 
   // Handle session selection
   const handleSelectSession = useCallback((sessionId: string) => {
@@ -308,9 +390,85 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
     const success = await deleteSession(sessionId);
     if (success && currentSessionId === sessionId) {
       setCurrentSessionId(null);
-      setMessages([]);
     }
-  }, [deleteSession, currentSessionId, setMessages]);
+  }, [deleteSession, currentSessionId]);
+
+  // Handle checkpoint restoration
+  const handleRestoreCheckpoint = useCallback(async (checkpoint: ChatCheckpoint) => {
+    // Restore code/workspace
+    if (gameCreationMode === "javascript" && checkpoint.codeSnapshot) {
+      loadAICode(checkpoint.codeSnapshot);
+    } else if (gameCreationMode === "blockly" && checkpoint.workspaceSnapshot) {
+      loadAIWorkspace(checkpoint.workspaceSnapshot);
+    }
+
+    // Restore context summary to game
+    if (checkpoint.contextSummary) {
+      try {
+        const gameRef = doc(db, "games", gameId);
+        await updateDoc(gameRef, { gameContextSummary: checkpoint.contextSummary });
+      } catch (err) {
+        console.error("Error restoring context summary:", err);
+      }
+    }
+  }, [gameId, gameCreationMode, loadAICode, loadAIWorkspace]);
+
+  // Handle checkpoint deletion
+  const handleDeleteCheckpoint = useCallback(async (checkpointId: string) => {
+    await deleteCheckpoint(checkpointId);
+  }, [deleteCheckpoint]);
+
+  // Generate context summary for a checkpoint and update game
+  const generateContextSummary = useCallback(async (
+    checkpointId: string,
+    codeSnapshot: string | null,
+    workspaceSnapshot: string | null
+  ) => {
+    try {
+      const response = await fetch(`/api/games/${gameId}/summarize-context`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: codeSnapshot,
+          workspace: workspaceSnapshot,
+          gameCreationMode,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error("Failed to generate context summary");
+        return;
+      }
+
+      const { summary } = await response.json();
+
+      if (summary) {
+        // Update checkpoint with summary
+        await updateCheckpointSummary(checkpointId, summary);
+
+        // Update game's context summary
+        const gameRef = doc(db, "games", gameId);
+        await updateDoc(gameRef, { gameContextSummary: summary });
+      }
+    } catch (err) {
+      console.error("Error generating context summary:", err);
+    }
+  }, [gameId, gameCreationMode, updateCheckpointSummary]);
+
+  // Create a map of messageId to checkpoint for display
+  // Maps both Firestore ID and AI SDK chat message ID to the same checkpoint
+  const checkpointsByMessageId = useMemo(() => {
+    const map = new Map<string, ChatCheckpoint>();
+    for (const checkpoint of checkpoints) {
+      // Map by Firestore message ID (for historical messages)
+      map.set(checkpoint.messageId, checkpoint);
+      // Also map by AI SDK message ID (for current session messages)
+      if (checkpoint.chatMessageId) {
+        map.set(checkpoint.chatMessageId, checkpoint);
+      }
+    }
+    return map;
+  }, [checkpoints]);
 
   // Render a single message part
   const renderMessagePart = (part: MessagePart, index: number) => {
@@ -396,8 +554,8 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
     }
 
     const body = gameCreationMode === "javascript"
-      ? { currentCode: code }
-      : { currentWorkspace: workspace.blocks };
+      ? { currentCode: code, gameContextSummary }
+      : { currentWorkspace: workspace.blocks, gameContextSummary };
 
     sendMessage(
       { parts: [{ type: "text", text }] },
@@ -441,7 +599,7 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
 
   return (
     <TooltipProvider>
-      <div className="h-full flex flex-col bg-neutral-950 border-r border-white/10">
+      <div className="h-full flex flex-col bg-neutral-950 border-r border-white/10 overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
           <Bot className="size-5 text-purple-400" />
@@ -459,8 +617,8 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
         </div>
 
         {/* Messages */}
-        <Conversation className="flex-1">
-          {messages.length === 0 ? (
+        <Conversation className="flex-1 min-h-0">
+          {allMessages.length === 0 ? (
             <ConversationEmptyState
               icon={<Bot className="size-12 text-purple-400/50" />}
               title="Start building your game!"
@@ -471,24 +629,35 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
             />
           ) : (
             <ConversationContent>
-              {messages.map((message, index) => (
-                <Message
-                  key={message.id || index}
-                  from={message.role}
-                  className={
-                    message.role === "assistant"
-                      ? "bg-neutral-900/50"
-                      : "bg-purple-900/20"
-                  }
-                >
-                  <MessageContent>
-                    {(message.parts as MessagePart[]).map((part, partIndex) =>
-                      renderMessagePart(part, partIndex)
+              {allMessages.map((message, index) => {
+                const checkpoint = checkpointsByMessageId.get(message.id);
+                return (
+                  <div key={message.id || index}>
+                    <Message
+                      from={message.role}
+                      className={
+                        message.role === "assistant"
+                          ? "bg-neutral-900/50"
+                          : "bg-purple-900/20"
+                      }
+                    >
+                      <MessageContent>
+                        {message.parts.map((part, partIndex) =>
+                          renderMessagePart(part, partIndex)
+                        )}
+                      </MessageContent>
+                    </Message>
+                    {checkpoint && (
+                      <CheckpointItem
+                        checkpoint={checkpoint}
+                        onRestore={handleRestoreCheckpoint}
+                        onDelete={handleDeleteCheckpoint}
+                      />
                     )}
-                  </MessageContent>
-                </Message>
-              ))}
-              {isLoading && messages[messages.length - 1]?.role === "user" && (
+                  </div>
+                );
+              })}
+              {isLoading && allMessages[allMessages.length - 1]?.role === "user" && (
                 <Message from="assistant" className="bg-neutral-900/50">
                   <MessageContent>
                     <div className="flex items-center gap-2 text-sm text-neutral-400">

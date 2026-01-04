@@ -27,6 +27,7 @@ export interface Game {
     plays: number;
     likes: number;
   };
+  gameContextSummary?: string; // AI-generated summary of current game features
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -187,4 +188,17 @@ export interface UpdateChatSessionInput {
 export interface AddChatMessageInput {
   role: "user" | "assistant";
   parts: ChatMessagePart[];
+}
+
+// Checkpoint for restoring code/workspace state
+export interface ChatCheckpoint {
+  id: string;
+  sessionId: string;
+  messageId: string; // The Firestore message ID (for historical messages)
+  chatMessageId?: string; // The AI SDK message ID (for current session messages)
+  label: string; // Auto-generated label like "Checkpoint 1" or from AI summary
+  codeSnapshot: string | null; // For JS mode
+  workspaceSnapshot: string | null; // For Blockly mode
+  contextSummary: string | null; // AI-generated summary of game features at this checkpoint
+  createdAt: Timestamp;
 }

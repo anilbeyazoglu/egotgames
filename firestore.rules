@@ -212,6 +212,13 @@ service cloud.firestore {
         allow read, write: if isAuthenticated()
           && get(/databases/$(database)/documents/chat_sessions/$(sessionId)).data.ownerId == request.auth.uid;
       }
+
+      // Checkpoints subcollection
+      match /checkpoints/{checkpointId} {
+        // Allow all operations if user owns the parent session
+        allow read, write: if isAuthenticated()
+          && get(/databases/$(database)/documents/chat_sessions/$(sessionId)).data.ownerId == request.auth.uid;
+      }
     }
   }
 }

@@ -1,5 +1,5 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { convertToModelMessages, streamText, tool } from "ai";
+import { convertToModelMessages, stepCountIs, streamText, tool } from "ai";
 import { z } from "zod";
 
 const google = createGoogleGenerativeAI({
@@ -269,18 +269,24 @@ Be encouraging and creative! Help users bring their game ideas to life with Java
 
 export async function POST(req: Request) {
   try {
-    const { messages: rawMessages, currentCode = "" } = await req.json();
+    const { messages: rawMessages, currentCode = "", gameContextSummary = null } = await req.json();
 
     const messages = await convertToModelMessages(rawMessages);
 
     // Store code state for the editor tool
     let code = currentCode;
 
+    // Build system prompt with context summary if available
+    const systemPrompt = gameContextSummary
+      ? `${SYSTEM_PROMPT}\n\n=== CURRENT GAME CONTEXT ===\n${gameContextSummary}\n\nUse this context to understand what the game currently does. When modifying code, preserve existing features unless asked to change them.`
+      : SYSTEM_PROMPT;
+
     const result = streamText({
       model: google("gemini-3-flash-preview"),
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages,
       maxOutputTokens: 32000,
+      stopWhen: stepCountIs(10),
       tools: {
         js_code_editor: tool({
           description:

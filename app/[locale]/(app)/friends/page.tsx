@@ -31,6 +31,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, MessageCircle, Search, Users } from "lucide-react";
 
@@ -41,6 +42,7 @@ type ThreadPreview = {
   time: string;
   type?: string;
   recipientId?: string | null;
+  avatarUrl?: string;
 };
 
 type FriendRequest = {
@@ -49,6 +51,7 @@ type FriendRequest = {
   createdAt?: number | null;
   displayName: string;
   username?: string;
+  avatarUrl?: string;
 };
 
 type ChatMessage = {
@@ -89,6 +92,14 @@ function extractDirectPartnerId(conversationId: string, currentUid: string) {
   return parts[0] === currentUid ? parts[1] : parts[0];
 }
 
+function getInitials(value: string) {
+  const cleaned = value.trim();
+  if (!cleaned) return "U";
+  const parts = cleaned.split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
 function toTimestamp(value: unknown) {
   if (typeof value === "number") return value;
   if (typeof value === "string") {
@@ -103,7 +114,12 @@ export default function FriendsPage() {
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(true);
   const [searchValue, setSearchValue] = useState("");
-  const [searchResult, setSearchResult] = useState<{ uid: string; name: string; username?: string } | null>(null);
+  const [searchResult, setSearchResult] = useState<{
+    uid: string;
+    name: string;
+    username?: string;
+    avatarUrl?: string;
+  } | null>(null);
   const [searchStatus, setSearchStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [searchMessage, setSearchMessage] = useState<string | null>(null);
   const [sendingRequest, setSendingRequest] = useState(false);
@@ -146,6 +162,7 @@ export default function FriendsPage() {
           entries.map(async ([fromUid, value]: [string, any]) => {
             let displayName = "Unknown user";
             let username = "";
+            let avatarUrl = "";
             try {
               const profileSnap = await getDoc(doc(db, "users", fromUid));
               if (profileSnap.exists()) {
@@ -156,6 +173,7 @@ export default function FriendsPage() {
                   profile.email ||
                   "Unknown user";
                 username = profile.username || "";
+                avatarUrl = profile.photoURL || profile.avatarUrl || "";
               }
             } catch {
               // Ignore lookup errors for now.
@@ -166,6 +184,7 @@ export default function FriendsPage() {
               createdAt: typeof value?.createdAt === "number" ? value.createdAt : null,
               displayName,
               username,
+              avatarUrl,
             } as FriendRequest;
           })
         );
@@ -203,6 +222,7 @@ export default function FriendsPage() {
           entries.map(async ([conversationId, value]) => {
             let name = value?.title || "Untitled chat";
             let recipientId: string | null = null;
+            let avatarUrl = value?.avatarUrl || "";
             if (value?.type === "direct") {
               const partnerId = extractDirectPartnerId(conversationId, currentUser.uid);
               recipientId = partnerId;
@@ -216,11 +236,14 @@ export default function FriendsPage() {
                       profile.username ||
                       profile.email ||
                       "Unknown user";
+                    avatarUrl = profile.photoURL || profile.avatarUrl || "";
                   } else {
                     name = "Unknown user";
+                    avatarUrl = "";
                   }
                 } catch {
                   name = "Unknown user";
+                  avatarUrl = "";
                 }
               }
             }
@@ -235,6 +258,7 @@ export default function FriendsPage() {
               time: timeLabel,
               type: value?.type || "direct",
               recipientId,
+              avatarUrl,
             } as ThreadPreview;
           })
         );
@@ -367,7 +391,7 @@ export default function FriendsPage() {
     }
 
     try {
-      let foundUser: { uid: string; name: string; username?: string } | null = null;
+      let foundUser: { uid: string; name: string; username?: string; avatarUrl?: string } | null = null;
       const usernameQuery = query(
         collection(db, "users"),
         where("username", "==", value),
@@ -381,6 +405,7 @@ export default function FriendsPage() {
           uid: docSnap.id,
           name: profile.displayName || profile.username || profile.email || value,
           username: profile.username || "",
+          avatarUrl: profile.photoURL || profile.avatarUrl || "",
         };
       }
 
@@ -394,11 +419,12 @@ export default function FriendsPage() {
         if (!emailSnap.empty) {
           const docSnap = emailSnap.docs[0];
           const profile = docSnap.data() as any;
-          foundUser = {
-            uid: docSnap.id,
-            name: profile.displayName || profile.username || profile.email || value,
-            username: profile.username || "",
-          };
+        foundUser = {
+          uid: docSnap.id,
+          name: profile.displayName || profile.username || profile.email || value,
+          username: profile.username || "",
+          avatarUrl: profile.photoURL || profile.avatarUrl || "",
+        };
         }
       }
 
@@ -638,9 +664,15 @@ export default function FriendsPage() {
                           : "hover:bg-muted/60 dark:hover:bg-white/5"
                       }`}
                     >
-                      <div className="space-y-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{thread.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{thread.lastMessage}</p>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="h-8 w-8 shrink-0">
+                          <AvatarImage src={thread.avatarUrl || ""} alt={thread.name} />
+                          <AvatarFallback>{getInitials(thread.name)}</AvatarFallback>
+                        </Avatar>
+                        <div className="space-y-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{thread.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{thread.lastMessage}</p>
+                        </div>
                       </div>
                       {thread.time ? (
                         <span className="text-xs text-muted-foreground">{thread.time}</span>
@@ -664,9 +696,24 @@ export default function FriendsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>
-                    {rightTab === "conversation"
-                      ? selectedThread?.name || "Conversation"
-                      : "Search for Friends"}
+                    {rightTab === "conversation" ? (
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="h-8 w-8 shrink-0">
+                          <AvatarImage
+                            src={selectedThread?.avatarUrl || ""}
+                            alt={selectedThread?.name || "Conversation"}
+                          />
+                          <AvatarFallback>
+                            {getInitials(selectedThread?.name || "Conversation")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="truncate">
+                          {selectedThread?.name || "Conversation"}
+                        </span>
+                      </div>
+                    ) : (
+                      "Search for Friends"
+                    )}
                   </CardTitle>
                   <CardDescription className="text-muted-foreground">
                     {rightTab === "conversation"
@@ -780,11 +827,17 @@ export default function FriendsPage() {
 
                     {searchResult ? (
                       <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2 dark:border-white/10">
-                        <div>
-                          <p className="text-sm font-medium">{searchResult.name}</p>
-                          {searchResult.username ? (
-                            <p className="text-xs text-muted-foreground">@{searchResult.username}</p>
-                          ) : null}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Avatar className="h-8 w-8 shrink-0">
+                            <AvatarImage src={searchResult.avatarUrl || ""} alt={searchResult.name} />
+                            <AvatarFallback>{getInitials(searchResult.name)}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{searchResult.name}</p>
+                            {searchResult.username ? (
+                              <p className="text-xs text-muted-foreground truncate">@{searchResult.username}</p>
+                            ) : null}
+                          </div>
                         </div>
                         <Button
                           size="sm"
@@ -823,11 +876,17 @@ export default function FriendsPage() {
                             key={request.fromUid}
                             className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2 dark:border-white/10 dark:bg-white/5"
                           >
-                            <div>
-                              <p className="text-sm font-medium">{request.displayName}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {request.username ? `@${request.username}` : "New request"} · {formatRequestTime(request.createdAt)}
-                              </p>
+                            <div className="flex items-center gap-3 min-w-0">
+                              <Avatar className="h-8 w-8 shrink-0">
+                                <AvatarImage src={request.avatarUrl || ""} alt={request.displayName} />
+                                <AvatarFallback>{getInitials(request.displayName)}</AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium truncate">{request.displayName}</p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {request.username ? `@${request.username}` : "New request"} · {formatRequestTime(request.createdAt)}
+                                </p>
+                              </div>
                             </div>
                             <div className="flex gap-2">
                               <Button

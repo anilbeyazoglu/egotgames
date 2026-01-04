@@ -1,5 +1,5 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { convertToModelMessages, streamText, tool } from "ai";
+import { convertToModelMessages, stepCountIs, streamText, tool } from "ai";
 import { z } from "zod";
 
 const anthropic = createAnthropic({
@@ -588,7 +588,7 @@ function addLineNumbers(json: string): string {
 
 export async function POST(req: Request) {
   try {
-    const { messages: rawMessages, currentWorkspace = "" } = await req.json();
+    const { messages: rawMessages, currentWorkspace = "", gameContextSummary = null } = await req.json();
 
     // Convert UI messages to model messages
     const messages = await convertToModelMessages(rawMessages);
@@ -596,11 +596,17 @@ export async function POST(req: Request) {
     // Store workspace state for the text editor tool
     let workspace = currentWorkspace;
 
+    // Build system prompt with context summary if available
+    const systemPrompt = gameContextSummary
+      ? `${SYSTEM_PROMPT}\n\n=== CURRENT GAME CONTEXT ===\n${gameContextSummary}\n\nUse this context to understand what the game currently does. When modifying the workspace, preserve existing features unless asked to change them.`
+      : SYSTEM_PROMPT;
+
     const result = streamText({
       model: anthropic("claude-sonnet-4-5"),
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages,
       maxOutputTokens: 64000,
+      stopWhen: stepCountIs(10),
       tools: {
         str_replace_based_edit_tool: tool({
           description:
