@@ -36,8 +36,6 @@ env:
     value: 1:935280453456:web:6a8e06ffa6de52f5a1ae55
   - variable: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
     value: G-1444KMWMSF
-  - variable: OPENAI_API_KEY
-    secret: OPENAI_API_KEY
   - variable: PIXELLAB_API_KEY
     secret: PIXELLAB_API_KEY
   - variable: NEXT_ANTHROPIC_API_KEY
