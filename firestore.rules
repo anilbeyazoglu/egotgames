@@ -187,5 +187,31 @@ service cloud.firestore {
         && request.resource.data.type == resource.data.type
         && request.resource.data.createdAt == resource.data.createdAt;
     }
+
+    // ============================================
+    // Chat Sessions (AI Assistant History)
+    // ============================================
+
+    match /chat_sessions/{sessionId} {
+      // Read: owner can read their sessions (works for both get and list)
+      // For list queries, Firestore checks if query constraints match rules
+      allow read: if isAuthenticated()
+        && resource.data.ownerId == request.auth.uid;
+
+      // Create: authenticated user must be the owner
+      allow create: if isAuthenticated()
+        && request.resource.data.ownerId == request.auth.uid;
+
+      // Update/Delete: only owner
+      allow update, delete: if isAuthenticated()
+        && resource.data.ownerId == request.auth.uid;
+
+      // Messages subcollection
+      match /messages/{messageId} {
+        // Allow all operations if user owns the parent session
+        allow read, write: if isAuthenticated()
+          && get(/databases/$(database)/documents/chat_sessions/$(sessionId)).data.ownerId == request.auth.uid;
+      }
+    }
   }
 }

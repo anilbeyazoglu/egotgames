@@ -469,14 +469,16 @@ export function GameEditor({ gameId }: { gameId: string }) {
           gameCreationMode = data.gameCreationMode || "blockly";
         }
 
-        // Load workspace.json from Storage
+        // Load workspace.json from Storage (only for Blockly games)
         let blocks = "";
-        try {
-          const workspaceRef = ref(storage, `games/${gameId}/workspace.json`);
-          const workspaceBytes = await getBytes(workspaceRef);
-          blocks = new TextDecoder().decode(workspaceBytes);
-        } catch {
-          // No workspace file yet, that's ok
+        if (gameCreationMode === "blockly") {
+          try {
+            const workspaceRef = ref(storage, `games/${gameId}/workspace.json`);
+            const workspaceBytes = await getBytes(workspaceRef);
+            blocks = new TextDecoder().decode(workspaceBytes);
+          } catch {
+            // No workspace file yet, that's ok
+          }
         }
 
         // Load sketch.js from Storage

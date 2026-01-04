@@ -129,3 +129,62 @@ export interface UpdatePublicAssetInput {
   tags?: string[];
   type?: AssetType;
 }
+
+// ============================================
+// Chat Session Types
+// ============================================
+
+export interface ChatSession {
+  id: string;
+  gameId: string;
+  ownerId: string;
+  title: string;
+  gameCreationMode: GameCreationMode;
+  messageCount: number;
+  lastMessageAt: Timestamp | null;
+  workspaceSnapshot: string | null;
+  codeSnapshot: string | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export type ChatMessagePartType = "text" | "tool-invocation";
+
+export interface ChatMessageTextPart {
+  type: "text";
+  text: string;
+}
+
+export interface ChatMessageToolPart {
+  type: "tool-invocation";
+  toolInvocationId: string;
+  toolName: string;
+  state: "input-available" | "output-available" | "input-streaming" | "approval-requested" | "approval-responded" | "output-error" | "output-denied";
+  input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+}
+
+export type ChatMessagePart = ChatMessageTextPart | ChatMessageToolPart;
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  parts: ChatMessagePart[];
+  createdAt: Timestamp;
+}
+
+export interface CreateChatSessionInput {
+  gameId: string;
+  gameCreationMode: GameCreationMode;
+}
+
+export interface UpdateChatSessionInput {
+  title?: string;
+  workspaceSnapshot?: string;
+  codeSnapshot?: string;
+}
+
+export interface AddChatMessageInput {
+  role: "user" | "assistant";
+  parts: ChatMessagePart[];
+}

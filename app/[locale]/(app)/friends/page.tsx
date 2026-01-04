@@ -22,6 +22,7 @@ import {
   query as rtdbQuery,
   ref as rtdbRef,
   remove,
+  get as rtdbGet,
   serverTimestamp as rtdbServerTimestamp,
   set,
   update,
@@ -262,46 +263,91 @@ export default function FriendsPage() {
   }, [currentUser]);
 
   useEffect(() => {
-    if (!selectedThread) {
+    if (!currentUser || !selectedThread) {
       setMessages([]);
       setMessagesLoading(false);
       return;
     }
 
     setMessagesLoading(true);
-    const messagesRef = rtdbQuery(
-      rtdbRef(rtdb, `messages/${selectedThread.id}`),
-      orderByChild("createdAt"),
-      limitToLast(60)
-    );
+    let unsubscribe: (() => void) | undefined;
+    let cancelled = false;
 
-    const unsubscribe = onValue(
-      messagesRef,
-      (snapshot) => {
-        const next: ChatMessage[] = [];
-        snapshot.forEach((child) => {
-          const value = child.val() || {};
-          next.push({
-            id: child.key || "",
-            senderId: value.senderId || "unknown",
-            text: value.text || "",
-            createdAt: toTimestamp(value.createdAt),
-            deletedAt: toTimestamp(value.deletedAt) || null,
-            deletedBy: value.deletedBy || null,
+    const ensureMembershipAndListen = async () => {
+      const participantRef = rtdbRef(rtdb, `participants/${selectedThread.id}/${currentUser.uid}`);
+      const now = rtdbServerTimestamp();
+
+      try {
+        const participantSnap = await rtdbGet(participantRef);
+        if (!participantSnap.exists()) {
+          await set(participantRef, {
+            role: "member",
+            joinedAt: now,
+            lastReadAt: now,
+            unreadCount: 0,
           });
-        });
-        setMessages(next);
-        setMessagesLoading(false);
-      },
-      (error) => {
-        console.error("Failed to load messages:", error);
-        setMessages([]);
-        setMessagesLoading(false);
-      }
-    );
+        } else {
+          // Keep lastReadAt fresh for rule checks and unread counts.
+          await update(participantRef, {
+            lastReadAt: now,
+            unreadCount: 0,
+          });
+        }
 
-    return () => unsubscribe();
-  }, [selectedThread]);
+        await update(rtdbRef(rtdb), {
+          [`userConversations/${currentUser.uid}/${selectedThread.id}/type`]: selectedThread.type || "direct",
+          [`userConversations/${currentUser.uid}/${selectedThread.id}/role`]: "member",
+        });
+      } catch (error) {
+        console.error("Failed to ensure conversation membership:", error);
+        if (!cancelled) {
+          setMessages([]);
+          setMessagesLoading(false);
+        }
+        return;
+      }
+
+      if (cancelled) return;
+
+      const messagesRef = rtdbQuery(
+        rtdbRef(rtdb, `messages/${selectedThread.id}`),
+        orderByChild("createdAt"),
+        limitToLast(60)
+      );
+
+      unsubscribe = onValue(
+        messagesRef,
+        (snapshot) => {
+          const next: ChatMessage[] = [];
+          snapshot.forEach((child) => {
+            const value = child.val() || {};
+            next.push({
+              id: child.key || "",
+              senderId: value.senderId || "unknown",
+              text: value.text || "",
+              createdAt: toTimestamp(value.createdAt),
+              deletedAt: toTimestamp(value.deletedAt) || null,
+              deletedBy: value.deletedBy || null,
+            });
+          });
+          setMessages(next);
+          setMessagesLoading(false);
+        },
+        (error) => {
+          console.error("Failed to load messages:", error);
+          setMessages([]);
+          setMessagesLoading(false);
+        }
+      );
+    };
+
+    ensureMembershipAndListen();
+
+    return () => {
+      cancelled = true;
+      if (unsubscribe) unsubscribe();
+    };
+  }, [currentUser, selectedThread]);
 
   useEffect(() => {
     if (!messagesEndRef.current) return;
@@ -544,38 +590,38 @@ export default function FriendsPage() {
   return (
     <div className="h-full flex flex-col">
       <div className="grid flex-1 min-h-0 gap-6 lg:grid-cols-[320px_1fr]">
-        <Card className="border-white/10 bg-neutral-900 text-white flex flex-col h-full">
+        <Card className="flex h-full flex-col border-border bg-card text-card-foreground dark:bg-neutral-900 dark:text-white dark:border-white/10">
           <CardHeader className="gap-4">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Conversations</CardTitle>
-                <CardDescription className="text-neutral-400">
+                <CardDescription className="text-muted-foreground">
                   Friends and groups.
                 </CardDescription>
               </div>
-              <Button size="icon" variant="outline" className="border-white/10 hover:bg-white/10">
+              <Button size="icon" variant="outline" className="dark:border-white/10 dark:hover:bg-white/10">
                 <MessageCircle className="h-4 w-4" />
               </Button>
             </div>
             <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500" />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search chats"
                 value={chatQuery}
                 onChange={(event) => setChatQuery(event.target.value)}
-                className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-neutral-500"
+                className="pl-10"
               />
             </div>
           </CardHeader>
           <CardContent className="px-0 flex-1 overflow-auto">
-            <div className="divide-y divide-white/5">
+            <div className="divide-y divide-border dark:divide-white/5">
               {threadsLoading ? (
-                <div className="flex items-center gap-2 px-6 py-4 text-xs text-neutral-500">
+                <div className="flex items-center gap-2 px-6 py-4 text-xs text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Loading conversations...
                 </div>
               ) : filteredThreads.length === 0 ? (
-                <div className="px-6 py-6 text-xs text-neutral-500">
+                <div className="px-6 py-6 text-xs text-muted-foreground">
                   No conversations yet.
                 </div>
               ) : (
@@ -587,15 +633,17 @@ export default function FriendsPage() {
                       type="button"
                       onClick={() => handleSelectThread(thread)}
                       className={`w-full text-left flex items-center justify-between px-6 py-4 transition-colors ${
-                        isActive ? "bg-white/10" : "hover:bg-white/5"
+                        isActive
+                          ? "bg-muted dark:bg-white/10"
+                          : "hover:bg-muted/60 dark:hover:bg-white/5"
                       }`}
                     >
                       <div className="space-y-1 min-w-0">
                         <p className="text-sm font-medium truncate">{thread.name}</p>
-                        <p className="text-xs text-neutral-400 truncate">{thread.lastMessage}</p>
+                        <p className="text-xs text-muted-foreground truncate">{thread.lastMessage}</p>
                       </div>
                       {thread.time ? (
-                        <span className="text-xs text-neutral-500">{thread.time}</span>
+                        <span className="text-xs text-muted-foreground">{thread.time}</span>
                       ) : null}
                     </button>
                   );
@@ -605,7 +653,7 @@ export default function FriendsPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-white/10 bg-neutral-900 text-white flex flex-col h-full">
+        <Card className="flex h-full flex-col border-border bg-card text-card-foreground dark:bg-neutral-900 dark:text-white dark:border-white/10">
           <Tabs
             defaultValue="friends"
             value={rightTab}
@@ -620,22 +668,22 @@ export default function FriendsPage() {
                       ? selectedThread?.name || "Conversation"
                       : "Search for Friends"}
                   </CardTitle>
-                  <CardDescription className="text-neutral-400">
+                  <CardDescription className="text-muted-foreground">
                     {rightTab === "conversation"
                       ? "Messages and activity."
                       : "Send requests and manage invites."}
                   </CardDescription>
                 </div>
-                <TabsList className="bg-white/5 border border-white/10">
+                <TabsList className="border border-border bg-muted/50 dark:bg-white/5 dark:border-white/10">
                   <TabsTrigger
                     value="conversation"
-                    className="data-[state=active]:bg-white/10 data-[state=active]:text-white"
+                    className="data-[state=active]:bg-card data-[state=active]:text-foreground dark:data-[state=active]:bg-white/10 dark:data-[state=active]:text-white"
                   >
                     Conversation
                   </TabsTrigger>
                   <TabsTrigger
                     value="friends"
-                    className="data-[state=active]:bg-white/10 data-[state=active]:text-white"
+                    className="data-[state=active]:bg-card data-[state=active]:text-foreground dark:data-[state=active]:bg-white/10 dark:data-[state=active]:text-white"
                   >
                     Search Friends
                   </TabsTrigger>
@@ -646,14 +694,14 @@ export default function FriendsPage() {
               <TabsContent value="conversation" className="mt-0 h-full">
                 {selectedThread ? (
                   <div className="flex h-full flex-col gap-4">
-                    <div className="flex-1 min-h-0 overflow-auto space-y-3 rounded-lg border border-white/10 bg-white/5 p-4">
+                    <div className="flex-1 min-h-0 overflow-auto space-y-3 rounded-lg border border-border bg-muted/40 p-4 dark:border-white/10 dark:bg-white/5">
                       {messagesLoading ? (
-                        <div className="flex items-center gap-2 text-xs text-neutral-500">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Loading messages...
                         </div>
                       ) : messages.length === 0 ? (
-                        <p className="text-xs text-neutral-500">No messages yet.</p>
+                        <p className="text-xs text-muted-foreground">No messages yet.</p>
                       ) : (
                         messages.map((message) => {
                           const isMine = message.senderId === currentUser?.uid;
@@ -666,9 +714,9 @@ export default function FriendsPage() {
                               <div
                                 className={`max-w-[70%] rounded-lg px-3 py-2 text-sm ${
                                   isMine
-                                    ? "bg-white text-black"
-                                    : "bg-neutral-800 text-white"
-                                } ${message.deletedAt ? "italic text-neutral-400" : ""}`}
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-muted text-foreground dark:bg-neutral-800 dark:text-white"
+                                } ${message.deletedAt ? "italic text-muted-foreground" : ""}`}
                               >
                                 {content}
                               </div>
@@ -683,21 +731,21 @@ export default function FriendsPage() {
                         value={messageInput}
                         onChange={(event) => setMessageInput(event.target.value)}
                         placeholder="Type a message..."
-                        className="bg-white/5 border-white/10 text-white placeholder:text-neutral-500"
+                        className=""
                       />
                       <Button
                         type="submit"
                         disabled={sendingMessage || !messageInput.trim()}
-                        className="bg-white text-black hover:bg-neutral-200"
+                        className="bg-primary text-primary-foreground hover:bg-primary/90"
                       >
                         {sendingMessage ? "Sending..." : "Send"}
                       </Button>
                     </form>
                   </div>
                 ) : (
-                  <div className="flex h-full items-center justify-center text-neutral-500">
+                  <div className="flex h-full items-center justify-center text-muted-foreground">
                     <div className="text-center">
-                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white/5">
+                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted/50 dark:bg-white/5">
                         <Users className="h-6 w-6" />
                       </div>
                       <p className="mt-3 text-sm">Select a conversation to start chatting.</p>
@@ -707,10 +755,10 @@ export default function FriendsPage() {
               </TabsContent>
               <TabsContent value="friends" className="mt-0 h-full overflow-auto">
                 <div className="space-y-6">
-                  <div className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-3">
+                  <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3 dark:border-white/10 dark:bg-white/5">
                     <div>
                       <p className="text-sm font-semibold">Find friends</p>
-                      <p className="text-xs text-neutral-400">
+                      <p className="text-xs text-muted-foreground">
                         Search by username or email.
                       </p>
                     </div>
@@ -719,9 +767,9 @@ export default function FriendsPage() {
                         value={searchValue}
                         onChange={(event) => setSearchValue(event.target.value)}
                         placeholder="username or email"
-                        className="bg-white/5 border-white/10 text-white placeholder:text-neutral-500"
+                        className=""
                       />
-                      <Button type="submit" variant="outline" className="border-white/10">
+                      <Button type="submit" variant="outline" className="dark:border-white/10">
                         {searchStatus === "loading" ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
@@ -731,16 +779,16 @@ export default function FriendsPage() {
                     </form>
 
                     {searchResult ? (
-                      <div className="flex items-center justify-between rounded-lg border border-white/10 px-3 py-2">
+                      <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2 dark:border-white/10">
                         <div>
                           <p className="text-sm font-medium">{searchResult.name}</p>
                           {searchResult.username ? (
-                            <p className="text-xs text-neutral-400">@{searchResult.username}</p>
+                            <p className="text-xs text-muted-foreground">@{searchResult.username}</p>
                           ) : null}
                         </div>
                         <Button
                           size="sm"
-                          className="bg-white text-black hover:bg-neutral-200"
+                          className="bg-primary text-primary-foreground hover:bg-primary/90"
                           onClick={handleSendRequest}
                           disabled={sendingRequest}
                         >
@@ -750,41 +798,41 @@ export default function FriendsPage() {
                     ) : null}
 
                     {searchMessage ? (
-                      <p className="text-xs text-neutral-400">{searchMessage}</p>
+                      <p className="text-xs text-muted-foreground">{searchMessage}</p>
                     ) : null}
                   </div>
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold">Incoming requests</p>
-                      <Badge variant="outline" className="border-white/10 text-neutral-400">
+                      <Badge variant="outline" className="text-muted-foreground dark:border-white/10">
                         {incomingRequests.length}
                       </Badge>
                     </div>
                     {requestsLoading ? (
-                      <div className="flex items-center gap-2 text-xs text-neutral-500">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Loading requests...
                       </div>
                     ) : incomingRequests.length === 0 ? (
-                      <p className="text-xs text-neutral-500">No pending requests.</p>
+                      <p className="text-xs text-muted-foreground">No pending requests.</p>
                     ) : (
                       <div className="space-y-2">
                         {incomingRequests.map((request) => (
                           <div
                             key={request.fromUid}
-                            className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2"
+                            className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2 dark:border-white/10 dark:bg-white/5"
                           >
                             <div>
                               <p className="text-sm font-medium">{request.displayName}</p>
-                              <p className="text-xs text-neutral-400">
+                              <p className="text-xs text-muted-foreground">
                                 {request.username ? `@${request.username}` : "New request"} · {formatRequestTime(request.createdAt)}
                               </p>
                             </div>
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
-                                className="bg-white text-black hover:bg-neutral-200"
+                                className="bg-primary text-primary-foreground hover:bg-primary/90"
                                 onClick={() => handleAcceptRequest(request.fromUid)}
                               >
                                 Accept
@@ -792,7 +840,7 @@ export default function FriendsPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="border-white/10"
+                                className="dark:border-white/10"
                                 onClick={() => handleDeclineRequest(request.fromUid)}
                               >
                                 Decline

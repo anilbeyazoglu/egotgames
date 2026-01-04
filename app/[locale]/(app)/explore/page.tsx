@@ -77,7 +77,7 @@ function GameCard({ game, playLabel }: { game: ExploreGame; playLabel: string })
 
   return (
     <Link href={href} className="group">
-      <Card className="h-full border-white/10 bg-black/40 hover:bg-white/5 transition-colors overflow-hidden">
+      <Card className="h-full border-border bg-card text-card-foreground transition-colors overflow-hidden hover:border-primary/40 dark:border-white/10 dark:bg-black/40 dark:hover:bg-white/5">
         <div className="relative aspect-video w-full bg-gradient-to-br from-sky-500/10 via-indigo-500/10 to-purple-500/10 flex items-center justify-center">
           {game.coverUrl ? (
             <Image
@@ -88,24 +88,26 @@ function GameCard({ game, playLabel }: { game: ExploreGame; playLabel: string })
               className="object-cover"
             />
           ) : (
-            <Gamepad2 className="h-10 w-10 text-white/20" />
+            <Gamepad2 className="h-10 w-10 text-muted-foreground opacity-60 dark:text-white/20 dark:opacity-100" />
           )}
         </div>
         <CardHeader className="p-3">
           <div className="flex items-center justify-between gap-2">
-            <Badge variant="outline" className="border-white/10 text-white/80">
+            <Badge variant="outline" className="text-xs">
               {game.typeName || "Game"}
             </Badge>
-            <span className="text-xs text-white/40">{formatDate(game.createdAt)}</span>
+            <span className="text-xs text-muted-foreground">
+              {formatDate(game.createdAt)}
+            </span>
           </div>
           <CardTitle className="line-clamp-1 text-base">{game.title}</CardTitle>
         </CardHeader>
         <CardContent className="px-3 pb-0">
-          <p className="text-xs text-white/60 line-clamp-2">
+          <p className="text-xs text-muted-foreground line-clamp-2">
             {game.description || "No description provided."}
           </p>
         </CardContent>
-        <CardFooter className="p-3 pt-2 text-xs text-white/60 flex justify-between items-center">
+        <CardFooter className="p-3 pt-2 text-xs text-muted-foreground flex justify-between items-center">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
               <Play className="h-3 w-3" />
@@ -116,7 +118,7 @@ function GameCard({ game, playLabel }: { game: ExploreGame; playLabel: string })
               {likes}
             </span>
           </div>
-          <span className="text-white/40">{playLabel}</span>
+          <span className="text-muted-foreground">{playLabel}</span>
         </CardFooter>
       </Card>
     </Link>
@@ -139,11 +141,11 @@ function GameSection({
   return (
     <section className="space-y-4">
       <div className="flex items-center gap-2 text-lg font-semibold">
-        <span className="text-white/70">{icon}</span>
+        <span className="text-muted-foreground">{icon}</span>
         <h2>{title}</h2>
       </div>
       {games.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-white/10 bg-white/5 p-6 text-sm text-white/60">
+        <div className="rounded-lg border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground dark:border-white/10 dark:bg-white/5 dark:text-white/70">
           {emptyMessage}
         </div>
       ) : (
@@ -243,36 +245,36 @@ export default function ExplorePage() {
     <div className="space-y-10">
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
-            <Sparkles className="h-5 w-5 text-white/70" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/60 dark:bg-white/10">
+            <Sparkles className="h-5 w-5 text-muted-foreground dark:text-white/70" />
           </div>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-            <p className="text-sm text-white/60">{t("description")}</p>
+            <p className="text-sm text-muted-foreground">{t("description")}</p>
           </div>
         </div>
         <div className="relative max-w-xl">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-white/40" />
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value)}
             placeholder={t("searchPlaceholder")}
-            className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-white/40"
+            className="pl-9"
           />
         </div>
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2 text-sm text-white/60">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           {t("loading")}
         </div>
       ) : errorMessage ? (
-        <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-200">
           {errorMessage}
         </div>
       ) : games.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-white/10 bg-white/5 p-6 text-sm text-white/60">
+        <div className="rounded-lg border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground dark:border-white/10 dark:bg-white/5 dark:text-white/70">
           {t("empty")}
         </div>
       ) : (

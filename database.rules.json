@@ -69,6 +69,7 @@
     },
     "messages": {
       "$cid": {
+        ".read": "auth != null && root.child('participants/' + $cid + '/' + auth.uid).exists()",
         "$mid": {
           ".read": "auth != null && root.child('participants/' + $cid + '/' + auth.uid).exists()",
           ".write": "auth != null && root.child('participants/' + $cid + '/' + auth.uid).exists() && ((!data.exists() && newData.exists() && newData.child('senderId').val() == auth.uid) || (data.exists() && newData.exists() && (data.child('senderId').val() == auth.uid || root.child('participants/' + $cid + '/' + auth.uid + '/role').val() == 'owner' || root.child('participants/' + $cid + '/' + auth.uid + '/role').val() == 'admin')))",

@@ -2,9 +2,10 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import type { ToolUIPart } from "ai";
+import type { ToolUIPart, UIMessage } from "ai";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   Conversation,
   ConversationContent,
@@ -20,12 +21,13 @@ import {
   Tool,
   ToolHeader,
   ToolContent,
-  ToolInput,
-  ToolOutput,
 } from "@/components/ai-elements/tool";
 import { Bot, Send, Sparkles, FileCode, Eye, Replace, PlusCircle, Code } from "lucide-react";
 import { useEditor } from "./editor-context";
-import { useRef, useEffect, FormEvent, KeyboardEvent, useState, useMemo } from "react";
+import { useRef, useEffect, FormEvent, KeyboardEvent, useState, useMemo, useCallback } from "react";
+import { useChatSessions, useChatSession } from "@/hooks/use-chat-sessions";
+import { ChatSessionPopover } from "./chat-session-popover";
+import type { ChatMessagePart, ChatMessageToolPart } from "@/lib/types";
 
 interface AIAssistantPanelProps {
   gameId: string;
@@ -163,10 +165,44 @@ function getToolIcon(part: MessagePart, input: Record<string, unknown> | undefin
   }
 }
 
+// Convert ChatMessagePart to MessagePart format for rendering
+function convertToMessagePart(part: ChatMessagePart): MessagePart {
+  if (part.type === "text") {
+    return { type: "text", text: part.text };
+  }
+  return {
+    type: "tool-invocation",
+    toolInvocationId: part.toolInvocationId,
+    toolName: part.toolName,
+    state: part.state,
+    input: part.input,
+    output: part.output,
+  };
+}
+
 export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
   const { loadAIWorkspace, loadAICode, workspace, code, gameCreationMode } = useEditor();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const pendingUserMessageRef = useRef<string | null>(null);
+
+  // Session management hooks
+  const {
+    sessions,
+    loading: sessionsLoading,
+    createSession,
+    deleteSession,
+  } = useChatSessions(gameId);
+
+  const {
+    session: currentSession,
+    messages: sessionMessages,
+    addMessage,
+    updateSession,
+    generateTitle,
+    setMessages: setSessionMessages,
+  } = useChatSession(currentSessionId);
 
   // Select API endpoint based on creation mode
   const apiEndpoint = gameCreationMode === "javascript"
@@ -179,10 +215,10 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
     [apiEndpoint]
   );
 
-  const { messages, sendMessage, status, error } = useChat({
-    id: `game-editor-${gameId}-${gameCreationMode}`,
+  const { messages, sendMessage, status, error, setMessages } = useChat({
+    id: `game-editor-${gameId}-${gameCreationMode}-${currentSessionId || "new"}`,
     transport,
-    onFinish: ({ message }) => {
+    onFinish: async ({ message }) => {
       const parts = message.parts as MessagePart[];
 
       if (gameCreationMode === "javascript") {
@@ -198,8 +234,83 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
           loadAIWorkspace(newWorkspace);
         }
       }
+
+      // Persist assistant message to session
+      if (currentSessionId) {
+        const chatParts: ChatMessagePart[] = parts.map((p) => {
+          if (p.type === "text" && p.text) {
+            return { type: "text" as const, text: p.text };
+          }
+          if (isToolInvocation(p)) {
+            return {
+              type: "tool-invocation" as const,
+              toolInvocationId: p.toolInvocationId || p.toolCallId || "",
+              toolName: p.toolName || "",
+              state: (p.state || "output-available") as ChatMessageToolPart["state"],
+              input: getToolInput(p),
+              output: getToolOutput(p),
+            };
+          }
+          return { type: "text" as const, text: "" };
+        }).filter((p) => p.type === "text" ? p.text : true);
+
+        await addMessage("assistant", chatParts);
+
+        // Update snapshot
+        if (gameCreationMode === "javascript") {
+          await updateSession({ codeSnapshot: code });
+        } else {
+          await updateSession({ workspaceSnapshot: JSON.stringify(workspace.blocks) });
+        }
+
+        // Generate title if this is the first exchange
+        if (currentSession?.messageCount === 1 && pendingUserMessageRef.current) {
+          await generateTitle(pendingUserMessageRef.current, gameCreationMode);
+          pendingUserMessageRef.current = null;
+        }
+      }
     },
   });
+
+  // Load session messages when session changes
+  useEffect(() => {
+    if (sessionMessages.length > 0 && currentSessionId) {
+      // Convert session messages to UIMessage format
+      // Using type assertion since our stored format is compatible at runtime
+      const uiMessages = sessionMessages.map((msg) => ({
+        id: msg.id,
+        role: msg.role,
+        parts: msg.parts.map(convertToMessagePart),
+        createdAt: msg.createdAt?.toDate?.() || new Date(),
+      })) as unknown as UIMessage[];
+      setMessages(uiMessages);
+    } else if (!currentSessionId) {
+      setMessages([]);
+    }
+  }, [sessionMessages, currentSessionId, setMessages]);
+
+  // Handle new session creation
+  const handleNewSession = useCallback(async () => {
+    const newSession = await createSession(gameCreationMode);
+    if (newSession) {
+      setCurrentSessionId(newSession.id);
+      setMessages([]);
+    }
+  }, [createSession, gameCreationMode, setMessages]);
+
+  // Handle session selection
+  const handleSelectSession = useCallback((sessionId: string) => {
+    setCurrentSessionId(sessionId);
+  }, []);
+
+  // Handle session deletion
+  const handleDeleteSession = useCallback(async (sessionId: string) => {
+    const success = await deleteSession(sessionId);
+    if (success && currentSessionId === sessionId) {
+      setCurrentSessionId(null);
+      setMessages([]);
+    }
+  }, [deleteSession, currentSessionId, setMessages]);
 
   // Render a single message part
   const renderMessagePart = (part: MessagePart, index: number) => {
@@ -263,7 +374,27 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
   };
 
   // Send current workspace/code with each message based on mode
-  const handleSendMessage = (text: string) => {
+  const handleSendMessage = async (text: string) => {
+    // Create session if none exists
+    let sessionId = currentSessionId;
+    if (!sessionId) {
+      const newSession = await createSession(gameCreationMode);
+      if (newSession) {
+        sessionId = newSession.id;
+        setCurrentSessionId(sessionId);
+      }
+    }
+
+    // Store user message for title generation
+    if (sessionId && currentSession?.messageCount === 0) {
+      pendingUserMessageRef.current = text;
+    }
+
+    // Persist user message
+    if (sessionId) {
+      await addMessage("user", [{ type: "text", text }]);
+    }
+
     const body = gameCreationMode === "javascript"
       ? { currentCode: code }
       : { currentWorkspace: workspace.blocks };
@@ -309,93 +440,104 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
   }, [input]);
 
   return (
-    <div className="h-full flex flex-col bg-neutral-950 border-r border-white/10">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
-        <Bot className="size-5 text-purple-400" />
-        <span className="font-semibold text-sm">Egot AI Assistant</span>
-        <Sparkles className="size-3 text-yellow-400" />
-      </div>
-
-      {/* Messages */}
-      <Conversation className="flex-1">
-        {messages.length === 0 ? (
-          <ConversationEmptyState
-            icon={<Bot className="size-12 text-purple-400/50" />}
-            title="Start building your game!"
-            description={gameCreationMode === "javascript"
-              ? "Describe what you want to create and I'll generate p5.js code for you."
-              : "Describe what you want to create and I'll generate Blockly blocks for you."
-            }
+    <TooltipProvider>
+      <div className="h-full flex flex-col bg-neutral-950 border-r border-white/10">
+        {/* Header */}
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+          <Bot className="size-5 text-purple-400" />
+          <span className="font-semibold text-sm">Egot AI Assistant</span>
+          <Sparkles className="size-3 text-yellow-400" />
+          <div className="flex-1" />
+          <ChatSessionPopover
+            sessions={sessions}
+            currentSessionId={currentSessionId}
+            loading={sessionsLoading}
+            onSelectSession={handleSelectSession}
+            onNewSession={handleNewSession}
+            onDeleteSession={handleDeleteSession}
           />
-        ) : (
-          <ConversationContent>
-            {messages.map((message, index) => (
-              <Message
-                key={message.id || index}
-                from={message.role}
-                className={
-                  message.role === "assistant"
-                    ? "bg-neutral-900/50"
-                    : "bg-purple-900/20"
-                }
-              >
-                <MessageContent>
-                  {(message.parts as MessagePart[]).map((part, partIndex) =>
-                    renderMessagePart(part, partIndex)
-                  )}
-                </MessageContent>
-              </Message>
-            ))}
-            {isLoading && messages[messages.length - 1]?.role === "user" && (
-              <Message from="assistant" className="bg-neutral-900/50">
-                <MessageContent>
-                  <div className="flex items-center gap-2 text-sm text-neutral-400">
-                    <div className="animate-pulse">
-                      {gameCreationMode === "javascript" ? "Generating code..." : "Generating blocks..."}
+        </div>
+
+        {/* Messages */}
+        <Conversation className="flex-1">
+          {messages.length === 0 ? (
+            <ConversationEmptyState
+              icon={<Bot className="size-12 text-purple-400/50" />}
+              title="Start building your game!"
+              description={gameCreationMode === "javascript"
+                ? "Describe what you want to create and I'll generate p5.js code for you."
+                : "Describe what you want to create and I'll generate Blockly blocks for you."
+              }
+            />
+          ) : (
+            <ConversationContent>
+              {messages.map((message, index) => (
+                <Message
+                  key={message.id || index}
+                  from={message.role}
+                  className={
+                    message.role === "assistant"
+                      ? "bg-neutral-900/50"
+                      : "bg-purple-900/20"
+                  }
+                >
+                  <MessageContent>
+                    {(message.parts as MessagePart[]).map((part, partIndex) =>
+                      renderMessagePart(part, partIndex)
+                    )}
+                  </MessageContent>
+                </Message>
+              ))}
+              {isLoading && messages[messages.length - 1]?.role === "user" && (
+                <Message from="assistant" className="bg-neutral-900/50">
+                  <MessageContent>
+                    <div className="flex items-center gap-2 text-sm text-neutral-400">
+                      <div className="animate-pulse">
+                        {gameCreationMode === "javascript" ? "Generating code..." : "Generating blocks..."}
+                      </div>
                     </div>
-                  </div>
-                </MessageContent>
-              </Message>
-            )}
-          </ConversationContent>
+                  </MessageContent>
+                </Message>
+              )}
+            </ConversationContent>
+          )}
+          <ConversationScrollButton />
+        </Conversation>
+
+        {/* Error display */}
+        {error && (
+          <div className="px-4 py-2 bg-red-900/20 border-t border-red-500/30 text-red-400 text-xs">
+            Error: {error.message}
+          </div>
         )}
-        <ConversationScrollButton />
-      </Conversation>
 
-      {/* Error display */}
-      {error && (
-        <div className="px-4 py-2 bg-red-900/20 border-t border-red-500/30 text-red-400 text-xs">
-          Error: {error.message}
-        </div>
-      )}
-
-      {/* Input */}
-      <form onSubmit={onSubmit} className="p-3 border-t border-white/10">
-        <div className="flex gap-2">
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Describe what you want to build..."
-            className="flex-1 min-h-[40px] max-h-[150px] resize-none bg-neutral-900 border-white/10 text-sm"
-            disabled={isLoading}
-            rows={1}
-          />
-          <Button
-            type="submit"
-            size="icon"
-            disabled={!input.trim() || isLoading}
-            className="shrink-0 bg-purple-600 hover:bg-purple-700"
-          >
-            <Send className="size-4" />
-          </Button>
-        </div>
-        <p className="text-[10px] text-neutral-500 mt-2">
-          Press Enter to send, Shift+Enter for new line
-        </p>
-      </form>
-    </div>
+        {/* Input */}
+        <form onSubmit={onSubmit} className="p-3 border-t border-white/10">
+          <div className="flex gap-2">
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Describe what you want to build..."
+              className="flex-1 min-h-[40px] max-h-[150px] resize-none bg-neutral-900 border-white/10 text-sm"
+              disabled={isLoading}
+              rows={1}
+            />
+            <Button
+              type="submit"
+              size="icon"
+              disabled={!input.trim() || isLoading}
+              className="shrink-0 bg-purple-600 hover:bg-purple-700"
+            >
+              <Send className="size-4" />
+            </Button>
+          </div>
+          <p className="text-[10px] text-neutral-500 mt-2">
+            Press Enter to send, Shift+Enter for new line
+          </p>
+        </form>
+      </div>
+    </TooltipProvider>
   );
 }

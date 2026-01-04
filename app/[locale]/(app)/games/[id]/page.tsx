@@ -21,11 +21,9 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft,
   Play,
@@ -361,50 +359,6 @@ export default function GameDetailsPage({
               </p>
             </CardContent>
           </Card>
-
-          <Tabs defaultValue="levels" className="w-full">
-            <TabsList className="bg-white/5 border border-white/10 text-muted-foreground">
-              <TabsTrigger
-                value="levels"
-                className="data-[state=active]:bg-white/10 data-[state=active]:text-white"
-              >
-                Levels
-              </TabsTrigger>
-              <TabsTrigger
-                value="rankings"
-                className="data-[state=active]:bg-white/10 data-[state=active]:text-white"
-              >
-                Leaderboard
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="levels" className="mt-4">
-              <Card className="border-white/10 bg-black/20">
-                <CardHeader>
-                  <CardTitle>Levels</CardTitle>
-                  <CardDescription>
-                    Manage your game levels here.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8 text-muted-foreground">
-                    No levels created yet. Open the editor to add levels.
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="rankings" className="mt-4">
-              <Card className="border-white/10 bg-black/20">
-                <CardHeader>
-                  <CardTitle>Leaderboard</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8 text-muted-foreground">
-                    No scores recorded yet.
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
         </div>
 
         <div className="space-y-6">

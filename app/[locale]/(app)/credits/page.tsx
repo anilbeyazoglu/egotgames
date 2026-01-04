@@ -191,10 +191,10 @@ export default function CreditsPage() {
         </p>
 
         {balance !== null && (
-          <div className="bg-white/5 border border-white/10 rounded-full px-6 py-2 flex items-center gap-2 mt-4">
+          <div className="border border-border bg-muted/40 rounded-full px-6 py-2 flex items-center gap-2 mt-4 dark:bg-white/5 dark:border-white/10">
             <Coins className="h-5 w-5 text-yellow-500" />
             <span className="font-semibold text-xl">{balance}</span>
-            <span className="text-sm text-neutral-400">Available Credits</span>
+            <span className="text-sm text-muted-foreground">Available Credits</span>
           </div>
         )}
       </div>
@@ -203,7 +203,7 @@ export default function CreditsPage() {
         {packages.map((pkg) => (
           <Card
             key={pkg.id}
-            className="bg-black/40 border-white/10 flex flex-col hover:border-white/20 transition-colors relative overflow-hidden"
+            className="flex flex-col relative overflow-hidden border-border bg-card text-card-foreground hover:border-primary/40 transition-colors dark:bg-black/40 dark:border-white/10 dark:hover:border-white/20"
           >
             {pkg.id === "pro" && (
               <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-bl-lg">
@@ -213,7 +213,7 @@ export default function CreditsPage() {
             <CardHeader>
               <CardTitle className="text-2xl">{pkg.name}</CardTitle>
               <CardDescription>
-                <span className="text-3xl font-bold text-white">
+                <span className="text-3xl font-bold text-foreground dark:text-white">
                   ${pkg.price}
                 </span>
                 <span className="text-muted-foreground"> one-time</span>
@@ -224,7 +224,7 @@ export default function CreditsPage() {
                 <Coins className="h-5 w-5 text-yellow-500" />
                 <span className="font-bold text-lg">{pkg.credits} Credits</span>
               </div>
-              <ul className="space-y-2 text-sm text-neutral-400">
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-green-500" />
                   <span>Never expires</span>
