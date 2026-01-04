@@ -28,8 +28,9 @@ import { useRef, useEffect, FormEvent, KeyboardEvent, useState, useMemo, useCall
 import { useChatSessions, useChatSession } from "@/hooks/use-chat-sessions";
 import { ChatSessionPopover } from "./chat-session-popover";
 import { CheckpointItem } from "./checkpoint-item";
-import { db } from "@/lib/firebase";
-import { doc, updateDoc, onSnapshot } from "firebase/firestore";
+import { db, storage } from "@/lib/firebase";
+import { doc, updateDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
+import { ref, uploadString } from "firebase/storage";
 import type { ChatMessagePart, ChatMessageToolPart, ChatCheckpoint } from "@/lib/types";
 
 interface AIAssistantPanelProps {
@@ -262,8 +263,8 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
     [apiEndpoint]
   );
 
-  // Reset chat when session changes
-  const chatId = `game-editor-${gameId}-${gameCreationMode}-${currentSessionId || "new"}`;
+  // Stable chat ID - don't include sessionId to prevent reset when session is created
+  const chatId = `game-editor-${gameId}-${gameCreationMode}`;
 
   const { messages: chatMessages, sendMessage, status, error } = useChat({
     id: chatId,
@@ -294,8 +295,14 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
         }
       }
 
-      // Persist assistant message to session
+      // Persist messages to session
       if (currentSessionId) {
+        // Persist user message first (if we have it)
+        if (pendingUserMessageRef.current) {
+          await addMessage("user", [{ type: "text", text: pendingUserMessageRef.current }]);
+        }
+
+        // Persist assistant message
         const chatParts: ChatMessagePart[] = parts.map((p) => {
           if (p.type === "text" && p.text) {
             return { type: "text" as const, text: p.text };
@@ -324,6 +331,28 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
             newWorkspaceSnapshot
           );
 
+          // Auto-save game code when checkpoint is created
+          try {
+            const gameFolder = `games/${gameId}`;
+            if (gameCreationMode === "javascript" && newCodeSnapshot) {
+              const codeRef = ref(storage, `${gameFolder}/sketch.js`);
+              await uploadString(codeRef, newCodeSnapshot, "raw", {
+                contentType: "application/javascript",
+              });
+            } else if (gameCreationMode === "blockly" && newWorkspaceSnapshot) {
+              const blocksRef = ref(storage, `${gameFolder}/workspace.json`);
+              await uploadString(blocksRef, newWorkspaceSnapshot, "raw", {
+                contentType: "application/json",
+              });
+            }
+            // Update game timestamp
+            const gameDocRef = doc(db, "games", gameId);
+            await updateDoc(gameDocRef, { updatedAt: serverTimestamp() });
+            console.log("[Checkpoint] Auto-saved game code");
+          } catch (saveError) {
+            console.error("[Checkpoint] Failed to auto-save game:", saveError);
+          }
+
           // Generate context summary asynchronously (don't await to not block UI)
           if (checkpoint) {
             generateContextSummary(
@@ -342,38 +371,35 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
         }
 
         // Generate title if this is the first exchange
-        if (currentSession?.messageCount === 1 && pendingUserMessageRef.current) {
+        if (currentSession?.messageCount === 0 && pendingUserMessageRef.current) {
           await generateTitle(pendingUserMessageRef.current, gameCreationMode);
-          pendingUserMessageRef.current = null;
         }
+
+        // Clear pending user message
+        pendingUserMessageRef.current = null;
       }
     },
   });
 
-  // Combine historical messages from Firestore with current chat messages
-  // Historical messages are displayed but not sent to AI (AI gets context via workspace/code)
+  // Display messages: use chatMessages for current conversation, sessionMessages for history
   const allMessages = useMemo(() => {
-    // Convert session messages to display format
-    const historicalMessages = sessionMessages.map((msg) => ({
+    // If there are active chat messages, show those (current conversation)
+    if (chatMessages.length > 0) {
+      return chatMessages.map((msg) => ({
+        id: msg.id,
+        role: msg.role as "user" | "assistant",
+        parts: msg.parts as MessagePart[],
+        isHistorical: false,
+      }));
+    }
+
+    // Otherwise show historical messages from Firestore
+    return sessionMessages.map((msg) => ({
       id: msg.id,
       role: msg.role as "user" | "assistant",
       parts: msg.parts.map(convertToMessagePart),
       isHistorical: true,
     }));
-
-    // Current chat messages (from this session's active conversation)
-    const currentMessages = chatMessages.map((msg) => ({
-      id: msg.id,
-      role: msg.role as "user" | "assistant",
-      parts: msg.parts as MessagePart[],
-      isHistorical: false,
-    }));
-
-    // Deduplicate - if a message ID exists in both, prefer the historical one
-    const historicalIds = new Set(historicalMessages.map((m) => m.id));
-    const uniqueCurrentMessages = currentMessages.filter((m) => !historicalIds.has(m.id));
-
-    return [...historicalMessages, ...uniqueCurrentMessages];
   }, [sessionMessages, chatMessages]);
 
   // Handle new session creation
@@ -547,18 +573,14 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
       if (newSession) {
         sessionId = newSession.id;
         setCurrentSessionId(sessionId);
+      } else {
+        console.error("Failed to create session!");
+        return;
       }
     }
 
-    // Store user message for title generation
-    if (sessionId && currentSession?.messageCount === 0) {
-      pendingUserMessageRef.current = text;
-    }
-
-    // Persist user message
-    if (sessionId) {
-      await addMessage("user", [{ type: "text", text }]);
-    }
+    // Store user message text for persistence in onFinish
+    pendingUserMessageRef.current = text;
 
     const body = gameCreationMode === "javascript"
       ? { currentCode: code, gameContextSummary }
@@ -568,35 +590,47 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
       { parts: [{ type: "text", text }] },
       { body }
     );
-  }, [currentSessionId, createSession, gameCreationMode, currentSession?.messageCount, addMessage, code, gameContextSummary, workspace.blocks, sendMessage]);
+  }, [currentSessionId, createSession, gameCreationMode, code, gameContextSummary, workspace.blocks, sendMessage]);
 
-  // Auto-start: send initial prompt when autostart flag is true
+  // Auto-load newest session on mount (if sessions exist)
+  const sessionLoadedRef = useRef(false);
+
   useEffect(() => {
-    console.log("[AutoStart] Check:", {
-      autostart,
-      hasPrompt: !!initialPrompt,
-      triggered: autostartTriggeredRef.current,
-      sessionsLoading,
-      status,
-    });
+    if (!sessionsLoading && !sessionLoadedRef.current && sessions.length > 0) {
+      sessionLoadedRef.current = true;
+      // Load the newest session (sessions are sorted by createdAt desc)
+      const newestSession = sessions[0];
+      setCurrentSessionId(newestSession.id);
+      console.log("[Session] Loaded existing session:", newestSession.id);
+    }
+  }, [sessionsLoading, sessions]);
 
-    // Only trigger once, when all conditions are met
+  // Auto-start: set input and trigger submit when autostart flag is true
+  // Only if there are no existing sessions (first time creating the game)
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    // Only trigger once, when all conditions are met AND no existing sessions
     if (
       autostart &&
       initialPrompt &&
       !autostartTriggeredRef.current &&
       !sessionsLoading &&
+      sessions.length === 0 && // Only auto-start if no sessions exist
       (status === "ready" || status === undefined)
     ) {
-      console.log("[AutoStart] Triggering with prompt:", initialPrompt);
+      console.log("[AutoStart] No existing sessions, setting input and triggering submit");
       autostartTriggeredRef.current = true;
-      // Small delay to ensure everything is fully initialized
-      const timer = setTimeout(() => {
-        handleSendMessage(initialPrompt);
-      }, 300);
-      return () => clearTimeout(timer);
+
+      // Set the input value and trigger form submit
+      setInput(initialPrompt);
+
+      // Small delay to ensure input state is set before submitting
+      setTimeout(() => {
+        formRef.current?.requestSubmit();
+      }, 100);
     }
-  }, [autostart, initialPrompt, sessionsLoading, status, handleSendMessage]);
+  }, [autostart, initialPrompt, sessionsLoading, sessions.length, status]);
 
   const isLoading = status === "streaming" || status === "submitted";
 
@@ -716,7 +750,7 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
         )}
 
         {/* Input */}
-        <form onSubmit={onSubmit} className="p-3 border-t border-white/10">
+        <form ref={formRef} onSubmit={onSubmit} className="p-3 border-t border-white/10">
           <div className="flex gap-2">
             <Textarea
               ref={textareaRef}

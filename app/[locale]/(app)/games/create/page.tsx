@@ -50,7 +50,7 @@ export default function CreateGamePage() {
   const [loading, setLoading] = useState(false);
   const [gameTypes, setGameTypes] = useState<GameType[]>([]);
   const [prompt, setPrompt] = useState("");
-  const [gameCreationMode, setGameCreationMode] = useState<GameCreationMode>("blockly");
+  const [gameCreationMode, setGameCreationMode] = useState<GameCreationMode>("javascript");
   const [statusMessage, setStatusMessage] = useState("");
 
   useEffect(() => {
@@ -183,6 +183,44 @@ export default function CreateGamePage() {
             <div className="space-y-3">
               <Label>Development Mode</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* JavaScript Mode Card */}
+                <button
+                  type="button"
+                  onClick={() => setGameCreationMode("javascript")}
+                  disabled={loading}
+                  className={`relative p-4 rounded-lg border-2 text-left transition-all disabled:opacity-50 ${
+                    gameCreationMode === "javascript"
+                      ? "border-yellow-500 bg-yellow-500/10"
+                      : "border-border bg-muted/50 hover:border-muted-foreground/30 hover:bg-muted"
+                  }`}
+                >
+                  {gameCreationMode === "javascript" && (
+                    <div className="absolute top-2 right-2">
+                      <div className="size-5 rounded-full bg-yellow-500 flex items-center justify-center">
+                        <svg className="size-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg ${gameCreationMode === "javascript" ? "bg-yellow-500/20" : "bg-muted"}`}>
+                      <Code2 className={`size-6 ${gameCreationMode === "javascript" ? "text-yellow-400" : "text-muted-foreground"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-foreground">JavaScript</h3>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-500/20 text-orange-400">
+                          Advanced
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Full code editor with p5.js for experienced developers.
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
                 {/* Blockly Mode Card */}
                 <button
                   type="button"
@@ -217,44 +255,6 @@ export default function CreateGamePage() {
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
                         Visual block-based programming with AI assistance.
-                      </p>
-                    </div>
-                  </div>
-                </button>
-
-                {/* JavaScript Mode Card */}
-                <button
-                  type="button"
-                  onClick={() => setGameCreationMode("javascript")}
-                  disabled={loading}
-                  className={`relative p-4 rounded-lg border-2 text-left transition-all disabled:opacity-50 ${
-                    gameCreationMode === "javascript"
-                      ? "border-yellow-500 bg-yellow-500/10"
-                      : "border-border bg-muted/50 hover:border-muted-foreground/30 hover:bg-muted"
-                  }`}
-                >
-                  {gameCreationMode === "javascript" && (
-                    <div className="absolute top-2 right-2">
-                      <div className="size-5 rounded-full bg-yellow-500 flex items-center justify-center">
-                        <svg className="size-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg ${gameCreationMode === "javascript" ? "bg-yellow-500/20" : "bg-muted"}`}>
-                      <Code2 className={`size-6 ${gameCreationMode === "javascript" ? "text-yellow-400" : "text-muted-foreground"}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-foreground">JavaScript</h3>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-500/20 text-orange-400">
-                          Advanced
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Full code editor with p5.js for experienced developers.
                       </p>
                     </div>
                   </div>
