@@ -33,6 +33,7 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { Link, useRouter } from "@/i18n/routing";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { storage, db } from "@/lib/firebase";
 import { ref, uploadString, uploadBytes, deleteObject, listAll, getBytes } from "firebase/storage";
@@ -46,6 +47,8 @@ interface GameEditorContentProps {
   gameDescription?: string;
   gameCoverUrl?: string;
   gameCreationMode: GameCreationMode;
+  initialPrompt?: string;
+  autostart?: boolean;
 }
 
 function GameEditorContent({
@@ -54,6 +57,8 @@ function GameEditorContent({
   gameDescription = "",
   gameCoverUrl = "",
   gameCreationMode,
+  initialPrompt,
+  autostart,
 }: GameEditorContentProps) {
   const router = useRouter();
   const { workspace, code } = useEditor();
@@ -247,7 +252,11 @@ function GameEditorContent({
       >
         {/* Left Panel - AI Assistant */}
         <ResizablePanel id="assistant" minSize="200px" maxSize="40%">
-          <AIAssistantPanel gameId={gameId} />
+          <AIAssistantPanel
+            gameId={gameId}
+            initialPrompt={initialPrompt}
+            autostart={autostart}
+          />
         </ResizablePanel>
 
         <ResizableHandle withHandle />
@@ -443,9 +452,13 @@ interface LoadedGameData {
   gameCoverUrl: string;
   gameCreationMode: GameCreationMode;
   initialWorkspace: BlocklyWorkspace;
+  initialPrompt?: string;
 }
 
 export function GameEditor({ gameId }: { gameId: string }) {
+  const searchParams = useSearchParams();
+  const autostart = searchParams.get("autostart") === "true";
+
   const [isLoading, setIsLoading] = useState(true);
   const [gameData, setGameData] = useState<LoadedGameData | null>(null);
 
@@ -460,6 +473,7 @@ export function GameEditor({ gameId }: { gameId: string }) {
         let gameDescription = "";
         let gameCoverUrl = "";
         let gameCreationMode: GameCreationMode = "blockly";
+        let initialPrompt: string | undefined;
 
         if (gameDoc.exists()) {
           const data = gameDoc.data();
@@ -467,6 +481,7 @@ export function GameEditor({ gameId }: { gameId: string }) {
           gameDescription = data.description || "";
           gameCoverUrl = data.coverUrl || "";
           gameCreationMode = data.gameCreationMode || "blockly";
+          initialPrompt = data.initialPrompt;
         }
 
         // Load workspace.json from Storage (only for Blockly games)
@@ -497,6 +512,7 @@ export function GameEditor({ gameId }: { gameId: string }) {
           gameCoverUrl,
           gameCreationMode,
           initialWorkspace: { blocks, generatedCode },
+          initialPrompt,
         });
       } catch (error) {
         console.error("Error loading game data:", error);
@@ -548,6 +564,8 @@ export function GameEditor({ gameId }: { gameId: string }) {
         gameDescription={gameData.gameDescription}
         gameCoverUrl={gameData.gameCoverUrl}
         gameCreationMode={gameData.gameCreationMode}
+        initialPrompt={gameData.initialPrompt}
+        autostart={autostart}
       />
     </EditorProvider>
   );

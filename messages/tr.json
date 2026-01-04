@@ -14,26 +14,96 @@
       }
     },
     "hero": {
-      "badge": "Bugün Oluşturmaya Başla",
-      "title": "Tek başına gitmek <br /> tehlikeli! Bunu al.",
-      "subtitle": "Egot'un gücüyle hikayelerinizi anında 8-bit dünyalara dönüştürün. Herkes için üretken bir oyun motoru.",
-      "getStarted": "Başlayın",
-      "learnMore": "Daha Fazla Bilgi"
+      "badge": "Bugün ilk oyununuzu yayınlayın",
+      "title": "Bloklarla, kodla <br /> ve yapay zekâ ile 2D oyun yapın",
+      "subtitle": "EgotGames tarayıcıda çalışan, yapay zekâ destekli bir 2D oyun stüdyosudur—Blockly ile başlayın ya da p5.js ile kod yazın, anında önizleyin, oynanabilir bağlantı olarak paylaşın.",
+      "getStarted": "Oyun oluştur",
+      "learnMore": "Nasıl çalışır?"
     },
     "howItWorks": {
-      "title": "Nasıl Çalışır",
+      "title": "Nasıl çalışır?",
       "steps": {
         "step1": {
-          "title": "1. Egot'a Anlat",
-          "desc": "Hikayeni veya fikrini sohbette paylaş."
+          "title": "1. Fikrini anlat",
+          "desc": "Blockly veya JavaScript seçin, sonra ne yapmak istediğinizi söyleyin."
         },
         "step2": {
-          "title": "2. İnşayı İzle",
-          "desc": "Harita ve spriteların anında oluşumunu gör."
+          "title": "2. Oluştur ve geliştir",
+          "desc": "Editör ve yapay zekâ asistanıyla mekanikleri ekleyin, görselleri iyileştirin, oyunu eğlenceli hale getirin."
         },
         "step3": {
-          "title": "3. Yayınla & Oyna",
-          "desc": "Oyununu dünya ile paylaş."
+          "title": "3. Yayınla ve paylaş",
+          "desc": "Herkese açık/özel seçin, ardından tarayıcıda oynanabilen linki paylaşın."
+        }
+      }
+    },
+    "whyEgot": {
+      "title": "Neden EgotGames",
+      "subtitle": "Gerçek oyunlar yapın, demo değil. EgotGames size fikir → oynanabilir döngü → paylaşılabilir link aşamalarını hızlı iterasyon için tasarlanmış bir iş akışıyla sunar.",
+      "features": {
+        "twoModes": {
+          "title": "İki oluşturma modu",
+          "desc": "Yeni başlayanlar için görsel bloklar (Blockly) veya ileri düzey yaratıcılar için p5.js JavaScript."
+        },
+        "aiAssistant": {
+          "title": "Projenizi düzenleyen yapay zekâ",
+          "desc": "Değişiklikleri sade bir dilde isteyin; asistan mevcut özellikleri koruyarak bloklarınızı/kodunuzu günceller."
+        },
+        "instantPreview": {
+          "title": "Anında önizleme",
+          "desc": "Oyununuzu tarayıcıda hazır çalışma ortamıyla inşa ederken oynayın."
+        },
+        "publishShare": {
+          "title": "Yayınla + paylaş",
+          "desc": "Taslak/yayınlı ve özel/herkese açık arasında geçiş yapın—sonra arkadaşlarınızla veya toplulukla paylaşın."
+        },
+        "assets": {
+          "title": "Varlıklar ve piksel sanat",
+          "desc": "Sprite/ses yükleyin veya yapay zekâ ile piksel sanat oluşturup kütüphanenize kaydedin."
+        },
+        "premium": {
+          "title": "Premium üyelik",
+          "desc": "Oyunlarınızı indirin, three.js ile 3D oluşturmayı açın ve her ay 50 ücretsiz yapay zekâ kredisi kazanın."
+        }
+      }
+    },
+    "useCases": {
+      "title": "Herkes için tasarlandı",
+      "beginners": {
+        "title": "Yeni başlayanlar için",
+        "desc": "İnşa ederek öğrenin: Blockly bloklarıyla başlayın, her adımın ne yaptığını görün ve gerçek oyun mantığına doğru ilerleyin."
+      },
+      "creators": {
+        "title": "Yaratıcılar için",
+        "desc": "p5.js ile hızlı hareket edin: oyun döngülerini prototiple, kontrolleri ayarlayın ve kodu düzenleyebilen bir yapay zekâ ortağıyla iterasyon yapın."
+      },
+      "teams": {
+        "title": "Takımlar ve sınıflar için",
+        "desc": "Link paylaşın, hızlıca inceleyin ve projeleri bulut kayıtları ve basit yayınlama kontrolleriyle düzenli tutun."
+      }
+    },
+    "faq": {
+      "title": "Sık sorulan sorular",
+      "items": {
+        "coding": {
+          "q": "Kod bilmem gerekiyor mu?",
+          "a": "Hayır. Blockly'de başlayın ve oyun mantığını görsel olarak oluşturun. Daha fazla kontrol istiyorsanız JavaScript moduna geçebilirsiniz."
+        },
+        "gameTypes": {
+          "q": "Ne tür oyunlar yapabilirim?",
+          "a": "p5.js üzerine kurulu 2D tarayıcı oyunları—arcade, sonsuz koşu, bulmaca ve daha fazlası—hızlı prototipleme ve iterasyon için tasarlandı."
+        },
+        "sharing": {
+          "q": "Oyunumu paylaşabilir miyim?",
+          "a": "Evet. Yayınlayın ve herkese açık/özel görünürlük seçin, ardından oynanabilir bir link paylaşın."
+        },
+        "assets": {
+          "q": "Kendi varlıklarımı kullanabilir miyim?",
+          "a": "Evet. Varlıkları kütüphanenize yükleyin ve Piksel Editörü ile piksel sanat varlıkları da oluşturabilirsiniz."
+        },
+        "premium": {
+          "q": "Premium ile ne elde ederim? (₺150/ay)",
+          "a": "Oyunlarınızı indirin, 3D oyun desteğini (three.js) açın ve her ay 50 ücretsiz yapay zekâ kredisi alın."
         }
       }
     }

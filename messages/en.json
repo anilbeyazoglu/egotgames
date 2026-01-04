@@ -14,26 +14,96 @@
       }
     },
     "hero": {
-      "badge": "Start Creating Today",
-      "title": "It's dangerous to go <br /> alone! Take this.",
-      "subtitle": "Turn your stories into 8-bit worlds instantly with the power of Egot. A generative game engine for everyone.",
-      "getStarted": "Get Started",
-      "learnMore": "Learn More"
+      "badge": "Ship your first game today",
+      "title": "Build a 2D game <br /> with blocks, code, and AI",
+      "subtitle": "EgotGames is an AI-assisted 2D game studio in your browser—prototype with Blockly or p5.js, preview instantly, and share a playable link.",
+      "getStarted": "Create a game",
+      "learnMore": "See how it works"
     },
     "howItWorks": {
-      "title": "How It Works",
+      "title": "How it works",
       "steps": {
         "step1": {
-          "title": "1. Tell Egot",
-          "desc": "Share your story or idea in chat."
+          "title": "1. Describe your idea",
+          "desc": "Choose Blockly or JavaScript, then tell us what you want to build."
         },
         "step2": {
-          "title": "2. Watch it Build",
-          "desc": "See the map and sprites generate instantly."
+          "title": "2. Build and iterate",
+          "desc": "Use the editor + AI assistant to add mechanics, polish visuals, and keep your loop fun."
         },
         "step3": {
-          "title": "3. Publish & Play",
-          "desc": "Share your game with the world."
+          "title": "3. Publish and share",
+          "desc": "Make it public or private, then share a link anyone can play in the browser."
+        }
+      }
+    },
+    "whyEgot": {
+      "title": "Why EgotGames",
+      "subtitle": "Build real games, not demos. EgotGames gives you the tools to go from idea → playable loop → shareable link with a workflow designed for fast iteration.",
+      "features": {
+        "twoModes": {
+          "title": "Two creation modes",
+          "desc": "Visual blocks (Blockly) for beginners, or p5.js JavaScript for advanced creators."
+        },
+        "aiAssistant": {
+          "title": "AI that edits your project",
+          "desc": "Ask for changes in plain language; the assistant updates your blocks/code while keeping existing features."
+        },
+        "instantPreview": {
+          "title": "Instant preview",
+          "desc": "Play your game as you build, with a browser-ready runtime."
+        },
+        "publishShare": {
+          "title": "Publish + share",
+          "desc": "Toggle between draft/published and private/public—then share with friends or the community."
+        },
+        "assets": {
+          "title": "Assets & pixel art",
+          "desc": "Upload sprites/sounds, or generate pixel art with AI and save it to your library."
+        },
+        "premium": {
+          "title": "Premium membership",
+          "desc": "Download your games, unlock 3D creation with three.js, and get 50 free AI credits every month."
+        }
+      }
+    },
+    "useCases": {
+      "title": "Built for everyone",
+      "beginners": {
+        "title": "For beginners",
+        "desc": "Learn by building: start with Blockly blocks, see what each step does, and grow into real game logic."
+      },
+      "creators": {
+        "title": "For creators",
+        "desc": "Move fast with p5.js: prototype gameplay loops, tune controls and feel, and iterate with an AI partner that can edit code."
+      },
+      "teams": {
+        "title": "For teams & classrooms",
+        "desc": "Share a link, review quickly, and keep projects organized with cloud saves and simple publishing controls."
+      }
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "items": {
+        "coding": {
+          "q": "Do I need to know how to code?",
+          "a": "No. Start in Blockly and build game logic visually. If you want more control later, you can move to JavaScript mode."
+        },
+        "gameTypes": {
+          "q": "What kind of games can I make?",
+          "a": "2D browser games built on p5.js—arcade, endless runners, puzzles, and more—designed for fast prototyping and iteration."
+        },
+        "sharing": {
+          "q": "Can I share my game?",
+          "a": "Yes. Publish it and choose public/private visibility, then share a playable link."
+        },
+        "assets": {
+          "q": "Can I bring my own assets?",
+          "a": "Yes. Upload assets to your library, and also generate pixel art assets with the Pixel Editor."
+        },
+        "premium": {
+          "q": "What do I get with Premium ($5/mo)?",
+          "a": "Download your games, unlock 3D game support (three.js), and receive 50 free AI credits every month."
         }
       }
     }

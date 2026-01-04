@@ -260,12 +260,12 @@ export default function GameDetailsPage({
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Link
               href="/games"
-              className="hover:text-white transition-colors flex items-center"
+              className="hover:text-foreground transition-colors flex items-center"
             >
               <ArrowLeft className="h-4 w-4 mr-1" /> Games
             </Link>
             <span>/</span>
-            <span className="text-white">{game.title}</span>
+            <span className="text-foreground">{game.title}</span>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">{game.title}</h1>
           <div className="flex items-center gap-2">
@@ -330,12 +330,12 @@ export default function GameDetailsPage({
         </div>
       </div>
 
-      <Separator className="bg-white/10" />
+      <Separator />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card className="border-white/10 bg-black/20">
-            <div className="aspect-video w-full bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center rounded-t-xl relative overflow-hidden">
+          <Card className="dark:bg-black/20">
+            <div className="aspect-video w-full bg-muted flex items-center justify-center rounded-t-xl relative overflow-hidden dark:bg-gradient-to-br dark:from-neutral-800 dark:to-neutral-900">
               {game.coverUrl ? (
                 <Image
                   src={game.coverUrl}
@@ -345,7 +345,7 @@ export default function GameDetailsPage({
                   unoptimized
                 />
               ) : (
-                <span className="text-neutral-500">
+                <span className="text-muted-foreground dark:text-neutral-500">
                   No cover image yet
                 </span>
               )}
@@ -362,7 +362,7 @@ export default function GameDetailsPage({
         </div>
 
         <div className="space-y-6">
-          <Card className="border-white/10 bg-black/20">
+          <Card className="dark:bg-black/20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5" /> Analytics
@@ -375,14 +375,14 @@ export default function GameDetailsPage({
                   {game.stats?.plays || 0}
                 </span>
               </div>
-              <Separator className="bg-white/5" />
+              <Separator />
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Likes</span>
                 <span className="text-xl font-bold">
                   {game.stats?.likes || 0}
                 </span>
               </div>
-              <Separator className="bg-white/5" />
+              <Separator />
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Created</span>
                 <span className="text-sm text-right">
@@ -398,12 +398,10 @@ export default function GameDetailsPage({
 
       {/* Settings Dialog */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="sm:max-w-[500px] bg-neutral-950 border-white/10 text-white">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Game Settings</DialogTitle>
-            <DialogDescription className="text-white/60">
-              Update your game details and settings.
-            </DialogDescription>
+            <DialogDescription>Update your game details and settings.</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
@@ -414,7 +412,6 @@ export default function GameDetailsPage({
                 id="game-name"
                 value={settingsName}
                 onChange={(e) => setSettingsName(e.target.value)}
-                className="bg-neutral-900 border-white/10"
                 placeholder="Enter game name"
               />
             </div>
@@ -426,7 +423,7 @@ export default function GameDetailsPage({
                 id="description"
                 value={settingsDescription}
                 onChange={(e) => setSettingsDescription(e.target.value)}
-                className="bg-neutral-900 border-white/10 min-h-[100px]"
+                className="min-h-[100px]"
                 placeholder="Describe your game..."
               />
             </div>
@@ -435,7 +432,7 @@ export default function GameDetailsPage({
             <div className="grid gap-2">
               <Label>Cover Image</Label>
               <div className="flex gap-4">
-                <div className="w-32 h-20 bg-neutral-900 border border-white/10 rounded-lg overflow-hidden flex items-center justify-center relative">
+                <div className="w-32 h-20 bg-muted border border-input rounded-lg overflow-hidden flex items-center justify-center relative">
                   {coverPreview || settingsCoverUrl ? (
                     <Image
                       src={coverPreview || settingsCoverUrl}
@@ -445,13 +442,13 @@ export default function GameDetailsPage({
                       unoptimized
                     />
                   ) : (
-                    <ImageIcon className="size-8 text-white/30" />
+                    <ImageIcon className="size-8 text-muted-foreground" />
                   )}
                 </div>
                 <div className="flex-1 flex flex-col justify-center gap-2">
                   <Label
                     htmlFor="cover-upload"
-                    className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 bg-neutral-900 border border-white/10 rounded-lg hover:bg-neutral-800 transition-colors w-fit"
+                    className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 bg-muted border border-input rounded-lg hover:bg-muted/80 transition-colors w-fit"
                   >
                     <Upload className="size-4" />
                     Upload Image
@@ -463,7 +460,7 @@ export default function GameDetailsPage({
                     onChange={handleCoverChange}
                     className="hidden"
                   />
-                  <p className="text-xs text-white/40">
+                  <p className="text-xs text-muted-foreground">
                     Recommended: 1280x720px (16:9)
                   </p>
                 </div>
@@ -476,7 +473,7 @@ export default function GameDetailsPage({
                 <AlertTriangle className="size-4 text-red-500" />
                 <h3 className="text-sm font-semibold text-red-500">Danger Zone</h3>
               </div>
-              <p className="text-sm text-white/60 mb-3">
+              <p className="text-sm text-muted-foreground mb-3">
                 Once you delete a game, there is no going back. Please be certain.
               </p>
               <Button
@@ -497,14 +494,12 @@ export default function GameDetailsPage({
             <Button
               variant="ghost"
               onClick={() => setSettingsOpen(false)}
-              className="text-white/60 hover:text-white"
             >
               Cancel
             </Button>
             <Button
               onClick={handleUpdateSettings}
               disabled={isUpdatingSettings || !settingsName.trim()}
-              className="bg-white text-black hover:bg-white/90"
             >
               {isUpdatingSettings ? (
                 <Loader2 className="size-4 animate-spin mr-2" />
@@ -517,28 +512,28 @@ export default function GameDetailsPage({
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[450px] bg-neutral-950 border-red-500/30 text-white">
+        <DialogContent className="sm:max-w-[450px] border-red-500/30">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-500">
               <AlertTriangle className="size-5" />
               Delete Game
             </DialogTitle>
-            <DialogDescription className="text-white/60">
+            <DialogDescription>
               This action cannot be undone. This will permanently delete the game
-              <span className="font-semibold text-white"> &quot;{game.title}&quot; </span>
+              <span className="font-semibold text-foreground"> &quot;{game.title}&quot; </span>
               and all of its files.
             </DialogDescription>
           </DialogHeader>
 
           <div className="py-4">
-            <Label htmlFor="confirm-delete" className="text-white/80">
-              Type <span className="font-mono font-semibold text-white">{game.title}</span> to confirm:
+            <Label htmlFor="confirm-delete">
+              Type <span className="font-mono font-semibold text-foreground">{game.title}</span> to confirm:
             </Label>
             <Input
               id="confirm-delete"
               value={deleteConfirmInput}
               onChange={(e) => setDeleteConfirmInput(e.target.value)}
-              className="mt-2 bg-neutral-900 border-white/10"
+              className="mt-2"
               placeholder="Enter game name"
               autoComplete="off"
             />
@@ -551,7 +546,6 @@ export default function GameDetailsPage({
                 setDeleteDialogOpen(false);
                 setDeleteConfirmInput("");
               }}
-              className="text-white/60 hover:text-white"
             >
               Cancel
             </Button>

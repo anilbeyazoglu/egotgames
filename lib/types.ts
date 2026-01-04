@@ -27,6 +27,7 @@ export interface Game {
     plays: number;
     likes: number;
   };
+  initialPrompt?: string; // User's initial game idea prompt (used for auto-start)
   gameContextSummary?: string; // AI-generated summary of current game features
   createdAt: Timestamp;
   updatedAt: Timestamp;

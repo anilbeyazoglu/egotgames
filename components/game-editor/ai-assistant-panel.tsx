@@ -34,6 +34,8 @@ import type { ChatMessagePart, ChatMessageToolPart, ChatCheckpoint } from "@/lib
 
 interface AIAssistantPanelProps {
   gameId: string;
+  initialPrompt?: string;
+  autostart?: boolean;
 }
 
 // Type for message parts (AI SDK uses toolCallId in stream, toolInvocationId in parts)
@@ -207,13 +209,14 @@ function convertToMessagePart(part: ChatMessagePart): MessagePart {
   };
 }
 
-export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
+export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssistantPanelProps) {
   const { loadAIWorkspace, loadAICode, workspace, code, gameCreationMode } = useEditor();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [gameContextSummary, setGameContextSummary] = useState<string | null>(null);
   const pendingUserMessageRef = useRef<string | null>(null);
+  const autostartTriggeredRef = useRef(false);
 
   // Listen to game's context summary
   useEffect(() => {
@@ -536,7 +539,7 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
   };
 
   // Send current workspace/code with each message based on mode
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = useCallback(async (text: string) => {
     // Create session if none exists
     let sessionId = currentSessionId;
     if (!sessionId) {
@@ -565,7 +568,35 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
       { parts: [{ type: "text", text }] },
       { body }
     );
-  };
+  }, [currentSessionId, createSession, gameCreationMode, currentSession?.messageCount, addMessage, code, gameContextSummary, workspace.blocks, sendMessage]);
+
+  // Auto-start: send initial prompt when autostart flag is true
+  useEffect(() => {
+    console.log("[AutoStart] Check:", {
+      autostart,
+      hasPrompt: !!initialPrompt,
+      triggered: autostartTriggeredRef.current,
+      sessionsLoading,
+      status,
+    });
+
+    // Only trigger once, when all conditions are met
+    if (
+      autostart &&
+      initialPrompt &&
+      !autostartTriggeredRef.current &&
+      !sessionsLoading &&
+      (status === "ready" || status === undefined)
+    ) {
+      console.log("[AutoStart] Triggering with prompt:", initialPrompt);
+      autostartTriggeredRef.current = true;
+      // Small delay to ensure everything is fully initialized
+      const timer = setTimeout(() => {
+        handleSendMessage(initialPrompt);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [autostart, initialPrompt, sessionsLoading, status, handleSendMessage]);
 
   const isLoading = status === "streaming" || status === "submitted";
 
