@@ -441,6 +441,57 @@ export function useChatSession(sessionId: string | null) {
     [sessionId]
   );
 
+  const archiveAfterCheckpoint = useCallback(
+    async (checkpoint: ChatCheckpoint): Promise<boolean> => {
+      if (!sessionId) return false;
+
+      try {
+        const batch = writeBatch(db);
+
+        // Find messages created after this checkpoint's message
+        const checkpointMessage = messages.find(m => m.id === checkpoint.messageId);
+        if (checkpointMessage) {
+          const checkpointTime = checkpointMessage.createdAt;
+
+          // Delete messages after the checkpoint message
+          for (const msg of messages) {
+            if (msg.createdAt.toMillis() > checkpointTime.toMillis()) {
+              const msgRef = doc(db, "chat_sessions", sessionId, "messages", msg.id);
+              batch.delete(msgRef);
+            }
+          }
+        }
+
+        // Delete checkpoints created after this one
+        for (const cp of checkpoints) {
+          if (cp.createdAt.toMillis() > checkpoint.createdAt.toMillis()) {
+            const cpRef = doc(db, "chat_sessions", sessionId, "checkpoints", cp.id);
+            batch.delete(cpRef);
+          }
+        }
+
+        await batch.commit();
+
+        // Update session message count
+        const remainingMessages = messages.filter(
+          m => !checkpointMessage || m.createdAt.toMillis() <= checkpointMessage.createdAt.toMillis()
+        );
+        const sessionRef = doc(db, "chat_sessions", sessionId);
+        await updateDoc(sessionRef, {
+          messageCount: remainingMessages.length,
+          updatedAt: serverTimestamp(),
+        });
+
+        return true;
+      } catch (err) {
+        console.error("Error archiving after checkpoint:", err);
+        setError(err instanceof Error ? err : new Error("Unknown error"));
+        return false;
+      }
+    },
+    [sessionId, messages, checkpoints]
+  );
+
   return {
     session,
     messages,
@@ -453,6 +504,7 @@ export function useChatSession(sessionId: string | null) {
     createCheckpoint,
     updateCheckpointSummary,
     deleteCheckpoint,
+    archiveAfterCheckpoint,
     setMessages,
   };
 }

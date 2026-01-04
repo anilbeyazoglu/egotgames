@@ -245,6 +245,7 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
     createCheckpoint,
     updateCheckpointSummary,
     deleteCheckpoint,
+    archiveAfterCheckpoint,
   } = useChatSession(currentSessionId);
 
   // Select API endpoint based on creation mode
@@ -411,7 +412,10 @@ export function AIAssistantPanel({ gameId }: AIAssistantPanelProps) {
         console.error("Error restoring context summary:", err);
       }
     }
-  }, [gameId, gameCreationMode, loadAICode, loadAIWorkspace]);
+
+    // Archive messages and checkpoints after this one
+    await archiveAfterCheckpoint(checkpoint);
+  }, [gameId, gameCreationMode, loadAICode, loadAIWorkspace, archiveAfterCheckpoint]);
 
   // Handle checkpoint deletion
   const handleDeleteCheckpoint = useCallback(async (checkpointId: string) => {
