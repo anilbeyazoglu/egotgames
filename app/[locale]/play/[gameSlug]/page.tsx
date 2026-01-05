@@ -12,7 +12,9 @@ import {
   query,
   where,
   addDoc,
+  increment,
   serverTimestamp,
+  updateDoc,
 } from "firebase/firestore";
 import { getBytes, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
@@ -113,6 +115,7 @@ export default function PlayPage({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const hasRecordedPlay = useRef(false);
 
   // Auth listener
   useEffect(() => {
@@ -186,6 +189,7 @@ export default function PlayPage({
     let isMounted = true;
     setLoading(true);
     setLoadError(null);
+    hasRecordedPlay.current = false;
 
     async function fetchGame() {
       try {
@@ -211,6 +215,34 @@ export default function PlayPage({
 
         if (!resolvedGame) {
           throw new Error("Game not found");
+        }
+
+        let shouldRecordPlay = true;
+        const playSessionKey = `egot:play:${resolvedGame.id}`;
+
+        try {
+          if (sessionStorage.getItem(playSessionKey)) {
+            shouldRecordPlay = false;
+          } else {
+            sessionStorage.setItem(playSessionKey, "1");
+          }
+        } catch {
+          // Session storage might be unavailable; fall back to recording the play.
+        }
+
+        if (!hasRecordedPlay.current && shouldRecordPlay) {
+          hasRecordedPlay.current = true;
+          updateDoc(doc(db, "games", resolvedGame.id), {
+            "stats.plays": increment(1),
+          }).catch((error) => {
+            console.error("Failed to record play:", error);
+            hasRecordedPlay.current = false;
+            try {
+              sessionStorage.removeItem(playSessionKey);
+            } catch {
+              // Ignore session storage cleanup errors.
+            }
+          });
         }
 
         const codeRef = ref(storage, `games/${resolvedGame.id}/sketch.js`);

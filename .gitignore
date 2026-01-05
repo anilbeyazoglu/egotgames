@@ -42,6 +42,10 @@ next-env.d.ts
 
 
 # START Ruler Generated Files
+/.codex/config.toml
+/.codex/config.toml.bak
+/.idx/airules.md
+/.idx/airules.md.bak
 /AGENTS.md
 /AGENTS.md.bak
 /CLAUDE.md

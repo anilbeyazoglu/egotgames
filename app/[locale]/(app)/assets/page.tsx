@@ -11,9 +11,11 @@ import {
   onSnapshot,
   getDocsFromCache,
   addDoc,
+  deleteDoc,
+  doc,
   serverTimestamp,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -35,6 +37,7 @@ import {
   Upload,
   Wand2,
   Loader2,
+  Trash2,
 } from "lucide-react";
 
 interface Asset {
@@ -43,6 +46,7 @@ interface Asset {
   gameId?: string;
   type: string;
   url: string;
+  storagePath?: string;
   isGenerated: boolean;
   cost: number;
   createdAt: any;
@@ -86,6 +90,7 @@ export default function AssetsPage() {
   const [isTimeout, setIsTimeout] = useState(false);
   const [filter, setFilter] = useState<AssetFilter>("all");
   const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // 1. Auth Listener
   useEffect(() => {
@@ -227,6 +232,30 @@ export default function AssetsPage() {
     }
   };
 
+  // Handle asset deletion
+  const handleDelete = async (asset: Asset) => {
+    if (!user || deletingId) return;
+
+    setDeletingId(asset.id);
+    try {
+      // Delete from Firebase Storage if storagePath exists
+      if (asset.storagePath) {
+        const storageRef = ref(storage, asset.storagePath);
+        await deleteObject(storageRef).catch((err) => {
+          // Ignore if file doesn't exist
+          console.warn("Storage delete warning:", err.message);
+        });
+      }
+
+      // Delete Firestore document
+      await deleteDoc(doc(db, "assets", asset.id));
+    } catch (error) {
+      console.error("Delete error:", error);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full space-y-4">
@@ -337,7 +366,7 @@ export default function AssetsPage() {
                 className="h-full hover:bg-white/5 transition-colors cursor-pointer border-white/10 overflow-hidden"
               >
                 {/* Asset Preview */}
-                <div className="aspect-square w-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 flex items-center justify-center relative">
+                <div className="aspect-square w-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 flex items-center justify-center relative group">
                   {asset.url && asset.type?.toLowerCase() === "sprite" ? (
                     <img
                       src={asset.url}
@@ -355,6 +384,22 @@ export default function AssetsPage() {
                       </Badge>
                     </div>
                   )}
+                  {/* Delete button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(asset);
+                    }}
+                    disabled={deletingId === asset.id}
+                    className="absolute top-2 left-2 p-1.5 rounded-md bg-red-500/80 hover:bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                    title="Delete asset"
+                  >
+                    {deletingId === asset.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
 
                 <CardHeader className="p-4 pb-2">

@@ -4,7 +4,7 @@ import { Timestamp } from "firebase/firestore";
 // Game Types
 // ============================================
 
-export type GameCreationMode = "blockly" | "javascript";
+export type GameCreationMode = "blockly" | "javascript" | "javascript3d";
 
 export type GameVisibility = "public" | "private";
 

@@ -10,11 +10,12 @@ import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 
 export function GamePreview() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const { code, gameState, playGame, pauseGame, stopGame, addConsoleOutput, clearConsole, gameId } =
+  const { code, gameState, playGame, pauseGame, stopGame, addConsoleOutput, clearConsole, gameId, gameCreationMode } =
     useEditor();
   const [savingCover, setSavingCover] = useState(false);
 
-  const generatePreviewHTML = useCallback(
+  // Generate p5.js preview HTML (for javascript mode)
+  const generateP5PreviewHTML = useCallback(
     (jsCode: string) => {
       return `
 <!DOCTYPE html>
@@ -116,6 +117,163 @@ export function GamePreview() {
 `;
     },
     []
+  );
+
+  // Generate Three.js preview HTML (for javascript3d mode)
+  const generateThreeJSPreviewHTML = useCallback(
+    (jsCode: string) => {
+      return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      min-height: 100vh; 
+      background: #1a1a1a; 
+      overflow: hidden;
+    }
+    canvas { 
+      display: block;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+  <script>
+    // Override console.log to send to parent
+    const originalConsole = {
+      log: console.log,
+      error: console.error,
+      warn: console.warn
+    };
+    
+    console.log = function(...args) {
+      originalConsole.log.apply(console, args);
+      window.parent.postMessage({ type: 'console', level: 'log', message: args.map(a => String(a)).join(' ') }, '*');
+    };
+    
+    console.error = function(...args) {
+      originalConsole.error.apply(console, args);
+      window.parent.postMessage({ type: 'console', level: 'error', message: args.map(a => String(a)).join(' ') }, '*');
+    };
+    
+    console.warn = function(...args) {
+      originalConsole.warn.apply(console, args);
+      window.parent.postMessage({ type: 'console', level: 'warn', message: args.map(a => String(a)).join(' ') }, '*');
+    };
+
+    // Handle errors
+    window.onerror = function(message, source, lineno, colno, error) {
+      window.parent.postMessage({ 
+        type: 'console', 
+        level: 'error', 
+        message: 'Error: ' + message + ' (line ' + lineno + ')' 
+      }, '*');
+      return true;
+    };
+
+    try {
+      ${jsCode || `
+        // Default Three.js demo scene
+        let scene, camera, renderer;
+        let cube;
+        let clock = new THREE.Clock();
+
+        function init() {
+          // Scene
+          scene = new THREE.Scene();
+          scene.background = new THREE.Color(0x1a1a2e);
+
+          // Camera
+          camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+          camera.position.z = 5;
+
+          // Renderer
+          renderer = new THREE.WebGLRenderer({ antialias: true });
+          renderer.setSize(window.innerWidth, window.innerHeight);
+          document.body.appendChild(renderer.domElement);
+
+          // Lights
+          const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+          scene.add(ambientLight);
+
+          const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+          directionalLight.position.set(5, 5, 5);
+          scene.add(directionalLight);
+
+          // Cube
+          const geometry = new THREE.BoxGeometry(2, 2, 2);
+          const material = new THREE.MeshStandardMaterial({ color: 0x9664ff });
+          cube = new THREE.Mesh(geometry, material);
+          scene.add(cube);
+
+          // Handle resize
+          window.addEventListener('resize', onWindowResize);
+
+          // Start animation
+          animate();
+        }
+
+        function onWindowResize() {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+          requestAnimationFrame(animate);
+          
+          const delta = clock.getDelta();
+          cube.rotation.x += delta;
+          cube.rotation.y += delta * 0.5;
+
+          renderer.render(scene, camera);
+        }
+
+        init();
+      `}
+
+      // Screenshot capture handler
+      window.addEventListener("message", (event) => {
+        if (event.data && event.data.type === "captureScreenshot") {
+          try {
+            const canvas = document.querySelector("canvas");
+            if (canvas) {
+              const dataUrl = canvas.toDataURL("image/png");
+              window.parent.postMessage({ type: "screenshotData", dataUrl }, "*");
+            } else {
+              window.parent.postMessage({ type: "screenshotError", error: "No canvas found" }, "*");
+            }
+          } catch (err) {
+            window.parent.postMessage({ type: "screenshotError", error: err.message }, "*");
+          }
+        }
+      });
+    } catch(e) {
+      console.error('Script error:', e.message);
+    }
+  </script>
+</body>
+</html>
+`;
+    },
+    []
+  );
+
+  // Select the appropriate HTML generator based on game creation mode
+  const generatePreviewHTML = useCallback(
+    (jsCode: string) => {
+      if (gameCreationMode === "javascript3d") {
+        return generateThreeJSPreviewHTML(jsCode);
+      }
+      return generateP5PreviewHTML(jsCode);
+    },
+    [gameCreationMode, generateP5PreviewHTML, generateThreeJSPreviewHTML]
   );
 
   // Listen for console messages from iframe

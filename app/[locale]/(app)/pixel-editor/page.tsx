@@ -25,12 +25,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Upload, Loader2, Download, Save, X, Sparkles } from "lucide-react";
+import { Upload, Loader2, Download, Save, X, Sparkles, Tag, FileText } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface GeneratedAsset {
   id: string;
   url: string;
   createdAt: any;
+}
+
+interface AssetMetadata {
+  title: string;
+  description: string;
+  suggestedType: string;
+  tags: string[];
 }
 
 const DIRECTIONS = [
@@ -68,7 +76,12 @@ export default function PixelEditorPage() {
   // Generation state
   const [generating, setGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [generatedImageBase64, setGeneratedImageBase64] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Metadata state
+  const [generatingMetadata, setGeneratingMetadata] = useState(false);
+  const [assetMetadata, setAssetMetadata] = useState<AssetMetadata | null>(null);
 
   // Gallery state
   const [gallery, setGallery] = useState<GeneratedAsset[]>([]);
@@ -129,6 +142,36 @@ export default function PixelEditorPage() {
     }
   };
 
+  // Generate metadata for image
+  const generateMetadata = async (imageBase64: string, prompt: string) => {
+    setGeneratingMetadata(true);
+    try {
+      const response = await fetch("/api/assets/generate-metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageBase64,
+          generationPrompt: prompt,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.title) {
+        setAssetMetadata({
+          title: data.title,
+          description: data.description,
+          suggestedType: data.suggestedType,
+          tags: data.tags,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to generate metadata:", err);
+    } finally {
+      setGeneratingMetadata(false);
+    }
+  };
+
   // Generate image
   const handleGenerate = async () => {
     if (!user || !description.trim()) return;
@@ -136,6 +179,8 @@ export default function PixelEditorPage() {
     setGenerating(true);
     setError(null);
     setGeneratedImage(null);
+    setGeneratedImageBase64(null);
+    setAssetMetadata(null);
 
     try {
       const response = await fetch("/api/pixellab/generate", {
@@ -160,7 +205,10 @@ export default function PixelEditorPage() {
       }
 
       if (data.image) {
+        setGeneratedImageBase64(data.image);
         setGeneratedImage(`data:image/png;base64,${data.image}`);
+        // Generate metadata in the background
+        generateMetadata(data.image, description.trim());
       }
     } catch (err: any) {
       setError(err.message || "Failed to generate image");
@@ -184,21 +232,28 @@ export default function PixelEditorPage() {
       await uploadString(storageRef, generatedImage, "data_url");
       const downloadURL = await getDownloadURL(storageRef);
 
-      // Create asset document
+      // Create asset document with generated metadata
       await addDoc(collection(db, "assets"), {
         ownerId: user.uid,
-        type: "sprite",
+        type: assetMetadata?.suggestedType || "sprite",
+        name: assetMetadata?.title || `Generated Asset ${timestamp}`,
+        description: assetMetadata?.description || "",
+        tags: assetMetadata?.tags || [],
         url: downloadURL,
         fileName,
         storagePath,
+        width,
+        height,
         isGenerated: true,
         generationPrompt: description,
         cost: 1,
         createdAt: serverTimestamp(),
       });
 
-      // Clear generated image after saving
+      // Clear generated image and metadata after saving
       setGeneratedImage(null);
+      setGeneratedImageBase64(null);
+      setAssetMetadata(null);
     } catch (err: any) {
       setError(err.message || "Failed to save asset");
     } finally {
@@ -235,7 +290,7 @@ export default function PixelEditorPage() {
         <div className="space-y-2">
           <Label>Tool</Label>
           <Select value={tool} onValueChange={setTool}>
-            <SelectTrigger className="bg-white/5 border-white/10">
+            <SelectTrigger className="border-border">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -258,7 +313,7 @@ export default function PixelEditorPage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="A stunning female adventurer casting a spell. Cool fantasy dungeon scene. Award winning masterpiece, trending on artstation"
-            className="min-h-[100px] bg-white/5 border-white/10 resize-none"
+            className="min-h-[100px] border-border resize-none"
           />
           <p className="text-xs text-muted-foreground">
             Describe the image you want to create, e.g. &quot;Full-body view of a wizard&quot;
@@ -269,7 +324,7 @@ export default function PixelEditorPage() {
         <div className="space-y-2">
           <Label>Direction</Label>
           <Select value={direction} onValueChange={setDirection}>
-            <SelectTrigger className="bg-white/5 border-white/10">
+            <SelectTrigger className="border-border">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -289,7 +344,7 @@ export default function PixelEditorPage() {
         <div className="space-y-2">
           <Label>Init Image</Label>
           <div
-            className="border border-dashed border-white/20 rounded-lg p-4 text-center cursor-pointer hover:bg-white/5 transition-colors relative"
+            className="border border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors relative"
             onClick={() => fileInputRef.current?.click()}
           >
             {initImagePreview ? (
@@ -429,14 +484,14 @@ export default function PixelEditorPage() {
       </div>
 
       {/* Center - Preview Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex-1 flex items-center justify-center bg-black/20 rounded-lg border border-white/10">
+      <div className="flex-1 flex flex-col min-w-0 gap-4">
+        <div className="flex-1 flex items-center justify-center bg-muted/30 rounded-lg border border-border">
           {generatedImage ? (
             <div className="relative">
               <img
                 src={generatedImage}
                 alt="Generated pixel art"
-                className="max-w-full max-h-[500px] pixelated"
+                className="max-w-full max-h-[400px] pixelated"
                 style={{ imageRendering: "pixelated" }}
               />
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
@@ -451,7 +506,7 @@ export default function PixelEditorPage() {
                 <Button
                   size="sm"
                   onClick={handleSaveToAssets}
-                  disabled={saving}
+                  disabled={saving || generatingMetadata}
                 >
                   {saving ? (
                     <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -468,6 +523,45 @@ export default function PixelEditorPage() {
             </p>
           )}
         </div>
+
+        {/* Metadata Panel */}
+        {generatedImage && (
+          <div className="bg-muted/30 rounded-lg border border-border p-4">
+            {generatingMetadata ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm">Generating asset metadata...</span>
+              </div>
+            ) : assetMetadata ? (
+              <div className="space-y-3">
+                <div className="flex items-start gap-2">
+                  <FileText className="h-4 w-4 mt-0.5 text-teal-400" />
+                  <div>
+                    <h4 className="font-medium text-sm">{assetMetadata.title}</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {assetMetadata.description}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Tag className="h-3 w-3 text-muted-foreground" />
+                  <Badge variant="outline" className="text-xs">
+                    {assetMetadata.suggestedType}
+                  </Badge>
+                  {assetMetadata.tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Asset metadata will be generated automatically
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right - Gallery */}
@@ -477,7 +571,7 @@ export default function PixelEditorPage() {
           {gallery.map((asset) => (
             <Card
               key={asset.id}
-              className="p-1 cursor-pointer hover:bg-white/5 transition-colors border-white/10"
+              className="p-1 cursor-pointer hover:bg-muted/50 transition-colors"
               onClick={() => setGeneratedImage(asset.url)}
             >
               <img

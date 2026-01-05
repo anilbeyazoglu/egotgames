@@ -82,19 +82,26 @@ function isBlocklyToolInvocation(part: MessagePart): boolean {
          part.toolName === "str_replace_based_edit_tool";
 }
 
-// Check if a part is a JS code tool invocation
+// Check if a part is a JS code tool invocation (2D p5.js)
 function isJSToolInvocation(part: MessagePart): boolean {
   return part.type === "tool-js_code_editor" ||
          (part.type === "tool-invocation" && part.toolName === "js_code_editor") ||
          part.toolName === "js_code_editor";
 }
 
-// Extract newCode from JS tool results
+// Check if a part is a JS3D code tool invocation (3D Three.js)
+function isJS3DToolInvocation(part: MessagePart): boolean {
+  return part.type === "tool-js3d_code_editor" ||
+         (part.type === "tool-invocation" && part.toolName === "js3d_code_editor") ||
+         part.toolName === "js3d_code_editor";
+}
+
+// Extract newCode from JS tool results (handles both 2D and 3D)
 // Returns the LAST newCode found (for agentic loops with multiple tool calls)
 function extractNewCodeFromParts(parts: MessagePart[]): string | null {
   let lastCode: string | null = null;
   for (const part of parts) {
-    if (isJSToolInvocation(part)) {
+    if (isJSToolInvocation(part) || isJS3DToolInvocation(part)) {
       const toolOutput = (part.output || part.result) as { newCode?: string } | undefined;
       if (toolOutput?.newCode) {
         lastCode = toolOutput.newCode;
@@ -118,8 +125,8 @@ function getToolOutput(part: MessagePart): { success?: boolean; message?: string
 function getToolTitle(part: MessagePart, input: Record<string, unknown> | undefined): string {
   const command = input?.command as string | undefined;
 
-  // JavaScript mode tool (check by toolName OR by JS-specific commands)
-  const isJSTool = isJSToolInvocation(part) || command === "replace" || command === "patch";
+  // JavaScript mode tool (check by toolName OR by JS-specific commands) - includes both 2D and 3D
+  const isJSTool = isJSToolInvocation(part) || isJS3DToolInvocation(part) || command === "replace" || command === "patch";
   if (isJSTool) {
     switch (command) {
       case "view":
@@ -159,8 +166,8 @@ function getToolTitle(part: MessagePart, input: Record<string, unknown> | undefi
 function getToolIcon(part: MessagePart, input: Record<string, unknown> | undefined) {
   const command = input?.command as string | undefined;
 
-  // JavaScript mode tool (check by toolName OR by JS-specific commands)
-  const isJSTool = isJSToolInvocation(part) || command === "replace" || command === "patch";
+  // JavaScript mode tool (check by toolName OR by JS-specific commands) - includes both 2D and 3D
+  const isJSTool = isJSToolInvocation(part) || isJS3DToolInvocation(part) || command === "replace" || command === "patch";
   if (isJSTool) {
     switch (command) {
       case "view":
@@ -211,7 +218,7 @@ function convertToMessagePart(part: ChatMessagePart): MessagePart {
 }
 
 export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssistantPanelProps) {
-  const { loadAIWorkspace, loadAICode, workspace, code, gameCreationMode } = useEditor();
+  const { loadAIWorkspace, loadAICode, workspace, code, gameCreationMode, pendingChatAsset, clearPendingChatAsset } = useEditor();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -271,7 +278,9 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
   // Select API endpoint based on creation mode
   const apiEndpoint = gameCreationMode === "javascript"
     ? "/api/ai/js-chat"
-    : "/api/ai/chat";
+    : gameCreationMode === "javascript3d"
+      ? "/api/ai/js3d-chat"
+      : "/api/ai/chat";
 
   // Create transport with dynamic API endpoint
   const transport = useMemo(
@@ -293,8 +302,8 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
       let newCodeSnapshot: string | null = null;
       let newWorkspaceSnapshot: string | null = null;
 
-      if (gameCreationMode === "javascript") {
-        // JavaScript mode: extract code from js_code_editor tool
+      if (gameCreationMode === "javascript" || gameCreationMode === "javascript3d") {
+        // JavaScript mode: extract code from js_code_editor or js3d_code_editor tool
         const newCode = extractNewCodeFromParts(parts);
         if (newCode) {
           loadAICode(newCode);
@@ -356,7 +365,7 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
           // Auto-save game code when checkpoint is created
           try {
             const gameFolder = `games/${gameId}`;
-            if (gameCreationMode === "javascript" && newCodeSnapshot) {
+            if ((gameCreationMode === "javascript" || gameCreationMode === "javascript3d") && newCodeSnapshot) {
               const codeRef = ref(storage, `${gameFolder}/sketch.js`);
               await uploadString(codeRef, newCodeSnapshot, "raw", {
                 contentType: "application/javascript",
@@ -386,7 +395,7 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
         }
 
         // Update snapshot
-        if (gameCreationMode === "javascript") {
+        if (gameCreationMode === "javascript" || gameCreationMode === "javascript3d") {
           await updateSession({ codeSnapshot: code });
         } else {
           await updateSession({ workspaceSnapshot: JSON.stringify(workspace.blocks) });
@@ -450,7 +459,7 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
   // Handle checkpoint restoration
   const handleRestoreCheckpoint = useCallback(async (checkpoint: ChatCheckpoint) => {
     // Restore code/workspace
-    if (gameCreationMode === "javascript" && checkpoint.codeSnapshot) {
+    if ((gameCreationMode === "javascript" || gameCreationMode === "javascript3d") && checkpoint.codeSnapshot) {
       loadAICode(checkpoint.codeSnapshot);
     } else if (gameCreationMode === "blockly" && checkpoint.workspaceSnapshot) {
       loadAIWorkspace(checkpoint.workspaceSnapshot);
@@ -609,7 +618,7 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
     // Store user message text for persistence in onFinish
     pendingUserMessageRef.current = text;
 
-    const body = gameCreationMode === "javascript"
+    const body = (gameCreationMode === "javascript" || gameCreationMode === "javascript3d")
       ? { currentCode: code, gameContextSummary }
       : { currentWorkspace: workspace.blocks, gameContextSummary };
 
@@ -716,6 +725,16 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
     }
   }, [input]);
 
+  // Handle pending chat asset from assets panel
+  useEffect(() => {
+    if (pendingChatAsset) {
+      setInput((prev) => prev ? `${prev}\n\n${pendingChatAsset}` : pendingChatAsset);
+      clearPendingChatAsset();
+      // Focus the textarea
+      textareaRef.current?.focus();
+    }
+  }, [pendingChatAsset, clearPendingChatAsset]);
+
   return (
     <TooltipProvider>
       <div className="h-full flex flex-col bg-neutral-950 border-r border-white/10 overflow-hidden">
@@ -743,7 +762,9 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
               title="Start building your game!"
               description={gameCreationMode === "javascript"
                 ? "Describe what you want to create and I'll generate p5.js code for you."
-                : "Describe what you want to create and I'll generate Blockly blocks for you."
+                : gameCreationMode === "javascript3d"
+                  ? "Describe what you want to create and I'll generate Three.js 3D code for you."
+                  : "Describe what you want to create and I'll generate Blockly blocks for you."
               }
             />
           ) : (
@@ -781,7 +802,7 @@ export function AIAssistantPanel({ gameId, initialPrompt, autostart }: AIAssista
                   <MessageContent>
                     <div className="flex items-center gap-2 text-sm text-neutral-400">
                       <div className="animate-pulse">
-                        {gameCreationMode === "javascript" ? "Generating code..." : "Generating blocks..."}
+                        {(gameCreationMode === "javascript" || gameCreationMode === "javascript3d") ? "Generating code..." : "Generating blocks..."}
                       </div>
                     </div>
                   </MessageContent>

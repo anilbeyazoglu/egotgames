@@ -5,7 +5,8 @@ import { useEditor } from "./editor-context";
 import { BlocklyEditor } from "./blockly-editor";
 import { CodeEditor } from "./code-editor";
 import { GamePreview } from "./game-preview";
-import { Blocks, Code, FolderOpen, Image, Play } from "lucide-react";
+import { AssetsPanel } from "./assets-panel";
+import { Blocks, Code, FolderOpen, ImageIcon, Play } from "lucide-react";
 
 export function EditorTabs() {
   const { activeTab, setActiveTab, tabs } = useEditor();
@@ -21,7 +22,7 @@ export function EditorTabs() {
       case "files":
         return <FolderOpen className="size-4" />;
       case "assets":
-        return <Image className="size-4" />;
+        return <ImageIcon className="size-4" />;
       default:
         return null;
     }
@@ -69,12 +70,7 @@ export function EditorTabs() {
       </TabsContent>
 
       <TabsContent value="assets" className="flex-1 m-0 overflow-hidden">
-        <div className="h-full flex items-center justify-center text-neutral-500">
-          <div className="text-center">
-            <Image className="size-12 mx-auto mb-3 opacity-50" />
-            <p className="text-sm">Asset manager coming soon</p>
-          </div>
-        </div>
+        <AssetsPanel />
       </TabsContent>
     </Tabs>
   );

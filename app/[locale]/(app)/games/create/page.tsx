@@ -22,7 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Blocks, Code2, Sparkles, Wand2 } from "lucide-react";
+import { Loader2, ArrowLeft, Blocks, Code2, Sparkles, Wand2, Box } from "lucide-react";
 import type { GameCreationMode } from "@/lib/types";
 
 interface GameType {
@@ -42,6 +42,11 @@ const PROMPT_SUGGESTIONS: Record<GameCreationMode, string[]> = {
     "A space shooter with a spaceship that shoots lasers at incoming asteroids. Arrow keys to move, space to shoot. Add particles and explosions!",
     "A platformer game with gravity, jumping, and moving platforms. The player collects coins and avoids spikes.",
     "A snake game where the snake grows when eating food. Include wall collision, self-collision, and increasing speed.",
+  ],
+  javascript3d: [
+    "A 3D space shooter where I control a spaceship flying through asteroid fields. WASD to move, mouse to aim, click to shoot!",
+    "A 3D endless runner where a character runs forward automatically and I dodge obstacles by moving left/right and jumping.",
+    "A 3D tower defense game with a top-down view where I place turrets to stop waves of enemies from reaching my base.",
   ],
 };
 
@@ -161,7 +166,7 @@ export default function CreateGamePage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
       <Link
         href="/games"
         className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -182,7 +187,7 @@ export default function CreateGamePage() {
             {/* Game Creation Mode Selection */}
             <div className="space-y-3">
               <Label>Development Mode</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* JavaScript Mode Card */}
                 <button
                   type="button"
@@ -255,6 +260,44 @@ export default function CreateGamePage() {
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
                         Visual block-based programming with AI assistance.
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* JavaScript 3D Mode Card */}
+                <button
+                  type="button"
+                  onClick={() => setGameCreationMode("javascript3d")}
+                  disabled={loading}
+                  className={`relative p-4 rounded-lg border-2 text-left transition-all disabled:opacity-50 ${
+                    gameCreationMode === "javascript3d"
+                      ? "border-cyan-500 bg-cyan-500/10"
+                      : "border-border bg-muted/50 hover:border-muted-foreground/30 hover:bg-muted"
+                  }`}
+                >
+                  {gameCreationMode === "javascript3d" && (
+                    <div className="absolute top-2 right-2">
+                      <div className="size-5 rounded-full bg-cyan-500 flex items-center justify-center">
+                        <svg className="size-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg ${gameCreationMode === "javascript3d" ? "bg-cyan-500/20" : "bg-muted"}`}>
+                      <Box className={`size-6 ${gameCreationMode === "javascript3d" ? "text-cyan-400" : "text-muted-foreground"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-foreground">JavaScript 3D</h3>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-500/20 text-red-400">
+                          Expert
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        3D games with Three.js for immersive experiences.
                       </p>
                     </div>
                   </div>
